@@ -95,30 +95,71 @@ link_right = [[Link(r, c, 'R') for c in range(n_col)] for r in range(n_row)]
 win = Win()
 
 # Constraints
+def theory():
+    # Each level has a certain layout of tiles
+    for r, row in enumerate(level_layout):
+        for c, tile in enumerate(row[0]):
+            print(c)
+            # Straight tile
+            if tile == '-':
+                E.add_constraint(straight[r][c])
+            # Curved tile
+            elif tile == 'L':
+                E.add_constraint(curved[r][c])
+            # Bridge tile
+            elif tile == '+':
+                E.add_constraint(bridge[r][c])
+            # Moat tile
+            elif tile == 'M':
+                E.add_constraint(moat[r][c])
+            # Ocean tile
+            elif tile == 'O':
+                E.add_constraint(ocean[r][c])
+            # Blank tile
+            else:
+                constraint.add_none_of(E, straight[r][c], curved[r][c], bridge[r][c], moat[r][c], ocean[r][c])
 
-# Each level has a certain layout of tiles
-for r, row in enumerate(level_layout):
-    for c, tile in enumerate(row[0]):
-        # Straight tile
-        if tile == '-':
-            E.add_constraint(straight[r][c])
-        # Curved tile
-        elif tile == 'L':
-            E.add_constraint(curved[r][c])
-        # Bridge tile
-        elif tile == '+':
-            E.add_constraint(bridge[r][c])
-        # Moat tile
-        elif tile == 'M':
-            E.add_constraint(moat[r][c])
-        # Ocean tile
-        elif tile == 'O':
-            E.add_constraint(ocean[r][c])
-        # Blank tile
-        else:
-            constraint.add_none_of(E, straight[r][c], curved[r][c], bridge[r][c], moat[r][c], ocean[r][c])
+            # A tile can be at most one of straight, curved, bridge, moat, ocean
+            # If none, it is a blank tile
+            constraint.add_at_most_one(E, straight[r][c], curved[r][c], bridge[r][c], moat[r][c], ocean[r][c])
 
-        # A tile can be at most one of straight, curved, bridge, moat, ocean
-        # If none, it is a blank tile
-        constraint.add_at_most_one(E, straight[r][c], curved[r][c], bridge[r][c], moat[r][c], ocean[r][c])
-            
+    # Water
+    # If there is water on a tile, it must either be an ocean tile 
+    # or is connected to another tile containing water
+    for r in range(1, n_row - 1):
+        for c in range(1, n_col - 1):
+            E.add_constraint(water[r][c] >> (ocean[r][c] \
+                    | water[r-1][c] & link_up[r][c] \
+                    | water[r][c-1] & link_left[r][c] \
+                    | water[r][c+1] & link_right[r][c])
+            )
+
+    # Linking
+    # If a tile links up, the tile above must link down
+    for r in range(1, n_row):
+        for c in range(n_col):
+            E.add_constraint(link_up[r][c] >> link_down[r-1][c])
+    # If a tile links down, the tile below must link up 
+    for r in range(n_row - 1):
+        for c in range(n_col):
+            E.add_constraint(link_down[r][c] >> link_up[r+1][c])
+    # If a tile links left, the tile on the left must link right
+    for r in range(n_row):
+        for c in range(1, n_col):
+            E.add_constraint(link_left[r][c] >> link_right[r][c-1])
+    # If a tile links right, the tile on the right must link left
+    for r in range(n_row):
+        for c in range(n_col - 1):
+            E.add_constraint(link_right[r][c] >> link_left[r][c+1])
+
+    # Win
+    # The level has a solution if there is a moat tile filled with water
+    temp  = moat[0][0] & water[0][0]
+    for r in range(n_row):
+        for c in range(n_col):
+            temp = temp | moat[r][c] & water[r][c]
+    E.add_constraint(win >> temp)
+    E.add_constraint(win)
+
+    return E
+    
