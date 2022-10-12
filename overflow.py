@@ -61,27 +61,64 @@ class Link:
     def __repr__(self) -> str:
         return f"L{self.direction}({self.row}, {self.col})"
 
-
+# - = straight
+# + = bridge
+# L = curved
+# M = moat
+# O = ocean
 level_layout = [
     [" L-MMML-L"],
     ["-LLLLL-LL"],
     ["LL-L++++L"],
     ["L+L--L+L-"],
     ["LL-LLLL-L"],
+    ["     O   "]
 ]
 
 n_row = len(level_layout)
 n_col = len(level_layout[0][0])
 
+# Propositions
 straight = [[Tile(r, c, 'S') for c in range(n_col)] for r in range(n_row)]
 curved = [[Tile(r, c, 'C') for c in range(n_col)] for r in range(n_row)]
 bridge = [[Tile(r, c, 'B') for c in range(n_col)] for r in range(n_row)]
 moat = [[Tile(r, c, 'M') for c in range(n_col)] for r in range(n_row)]
 ocean = [[Tile(r, c, 'O') for c in range(n_col)] for r in range(n_row)]
+
 water = [[Water(r, c) for c in range(n_col)] for r in range(n_row)]
+
 link_up = [[Link(r, c, 'U') for c in range(n_col)] for r in range(n_row)]
 link_down = [[Link(r, c, 'D') for c in range(n_col)] for r in range(n_row)]
 link_left = [[Link(r, c, 'L') for c in range(n_col)] for r in range(n_row)]
 link_right = [[Link(r, c, 'R') for c in range(n_col)] for r in range(n_row)]
 
 win = Win()
+
+# Constraints
+
+# Each level has a certain layout of tiles
+for r, row in enumerate(level_layout):
+    for c, tile in enumerate(row[0]):
+        # Straight tile
+        if tile == '-':
+            E.add_constraint(straight[r][c])
+        # Curved tile
+        elif tile == 'L':
+            E.add_constraint(curved[r][c])
+        # Bridge tile
+        elif tile == '+':
+            E.add_constraint(bridge[r][c])
+        # Moat tile
+        elif tile == 'M':
+            E.add_constraint(moat[r][c])
+        # Ocean tile
+        elif tile == 'O':
+            E.add_constraint(ocean[r][c])
+        # Blank tile
+        else:
+            constraint.add_none_of(E, straight[r][c], curved[r][c], bridge[r][c], moat[r][c], ocean[r][c])
+
+        # A tile can be at most one of straight, curved, bridge, moat, ocean
+        # If none, it is a blank tile
+        constraint.add_at_most_one(E, straight[r][c], curved[r][c], bridge[r][c], moat[r][c], ocean[r][c])
+            
