@@ -104,13 +104,16 @@ def theory():
             # Straight tile
             if tile == '-':
                 E.add_constraint(straight[r][c])
-                if r == 0 and c == 0 or r == n_row - 1 and c == 0 or ...:  # TODO: Same for two other corners
+                if (r == 0 and c == 0) or (r == n_row - 1 and c == 0) or (r == 0 and c == n_col - 1) or (r == n_row - 1 and c == n_col - 1):  # Corners
                     E.add_constraint(~water[r][c])
                 elif c == 0 or c == n_col - 1:  # Left & right side
                     E.add_constraint(water[r][c] >> (
                         ( link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c] & water[r+1][c])
                     ))
-                # TODO: Will also need to cover up and down
+                elif r == n_row - 1 or r == 0: # Top and bottom
+                    E.add_constraint(water[r][c] >> (
+                        ( ~link_up[r][c] & ~link_down[r][c] & link_left[r][c] & link_right[r][c] & water[r][c-1] & water[r][c+1])
+                    ))
                 else:
                     E.add_constraint(water[r][c] >> (
                         ( link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c] & water[r+1][c])  # Up & down
@@ -120,7 +123,7 @@ def theory():
             elif tile == 'L':
                 E.add_constraint(curved[r][c])
                 E.add_constraint(water[r][c] >> (
-                      ( link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r-1][c] & water[r][c-1])  # Up & left
+                    ( link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r-1][c] & water[r][c-1])  # Up & left
                     | ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r-1][c] & water[r][c+1])  # Up & right
                     | (~link_up[r][c] &  link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r+1][c] & water[r][c-1])  # Down & left
                     | (~link_up[r][c] &  link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r+1][c] & water[r][c+1])  # Down & right
@@ -128,10 +131,13 @@ def theory():
             # Bridge tile
             elif tile == '+':
                 E.add_constraint(bridge[r][c])
-                E.add_constraint(water[r][c] >> (
-                      ( link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c] & water[r+1][c])  # Up & down
-                    | (~link_up[r][c] & ~link_down[r][c] &  link_left[r][c] &  link_right[r][c] & water[r][c-1] & water[r][c+1])  # Left & right
-                    | ( link_up[r][c] &  link_down[r][c] &  link_left[r][c] &  link_right[r][c] & water[r-1][c] & water[r+1][c] & water[r][c-1] & water[r][c+1])  # All 4 directions
+                if (r == 0 and c == 0) or (r == n_row - 1 and c == 0) or (r == 0 and c == n_col - 1) or (r == n_row - 1 and c == n_col - 1):  # Corners
+                    E.add_constraint(~water[r][c])
+                else:
+                    E.add_constraint(water[r][c] >> (
+                        ( link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c] & water[r+1][c])  # Up & down
+                        | (~link_up[r][c] & ~link_down[r][c] &  link_left[r][c] &  link_right[r][c] & water[r][c-1] & water[r][c+1])  # Left & right
+                        | ( link_up[r][c] &  link_down[r][c] &  link_left[r][c] &  link_right[r][c] & water[r-1][c] & water[r+1][c] & water[r][c-1] & water[r][c+1])  # All 4 directions
                 ))
             # Moat tile
             elif tile == 'M':
@@ -167,7 +173,8 @@ def theory():
             E.add_constraint(water[r][c] >> (ocean[r][c]
                     | water[r-1][c] & link_up[r][c]
                     | water[r][c-1] & link_left[r][c]
-                    | water[r][c+1] & link_right[r][c])
+                    | water[r][c+1] & link_right[r][c]
+                    | water[r+1][c] & link_down[r][c]) # Pls remove this if it's wrong, since it might be wrong, but Isn't it possible to link downwards?
             )
     for c in range(1, n_col - 1):
         E.add_constraint(water[0][c] >>
