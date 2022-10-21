@@ -1,7 +1,10 @@
 from bauhaus import Encoding, proposition, constraint, print_theory
 from bauhaus.utils import count_solutions, likelihood
+from nnf import dsharp
 
 E = Encoding()
+F = Encoding()
+G = Encoding()
 
 
 @proposition(E)
@@ -61,6 +64,21 @@ class Link:
     def __repr__(self) -> str:
         return f"L{self.direction}({self.row}, {self.col})"
 
+
+@proposition(F)
+class Length:
+    """
+    Proposition representing the length of a path.
+    self.number: The number that the proposition represents
+    """
+
+    def __init__(self, number):
+        self.number = number
+
+    def __repr__(self) -> str:
+        return f"len {self.number}"
+
+
 # - = straight
 # + = bridge
 # L = curved
@@ -94,13 +112,16 @@ link_right = [[Link(r, c, 'R') for c in range(n_col)] for r in range(n_row)]
 
 win = Win()
 
+length = [None] + [Length(i + 1) for i in range(n_row * n_col)]
+
 # Constraints
+
+
 def theory():
     # Each level has a certain layout of tiles
     # Each tile can only link in a certain way
     for r, row in enumerate(level_layout):
         for c, tile in enumerate(row[0]):
-            print(c)
             # Straight tile
             if tile == '-':
                 E.add_constraint(straight[r][c])
@@ -236,7 +257,7 @@ def theory():
 
     # Win
     # The level has a solution if there is a moat tile filled with water
-    temp  = moat[0][0] & water[0][0]
+    temp = moat[0][0] & water[0][0]
     for r in range(n_row):
         for c in range(n_col):
             temp = temp | moat[r][c] & water[r][c]
@@ -245,9 +266,86 @@ def theory():
 
     return E
 
+
+def get_length(solution):
+    # Given an output from the SAT solver, returns the length of the path.
+    # Get configuration of water
+    for r in range(n_row):
+        for c in range(n_col):
+            if solution[water[r][c]]:
+                F.add_constraint(water[r][c])
+            else:
+                F.add_constraint(~water[r][c])
+
+    # Iterate over every possible subset of the tiles.
+    # If a bit is on, there is water in tile j. Else, it does not contain water.
+    for i in range(2 ** (n_row * n_col)):
+        n_ones = 0
+        if i & 1 == 1:
+            temp = water[0][0]
+        else:
+            temp = ~water[0][0]
+
+        for j in range(n_row * n_col):
+            if i & (1 << j) > 0:
+                n_ones += 1
+                # Tile must contain water
+                temp = temp & water[j // n_row][j % n_row]
+            else:
+                # Tile must not contain water
+                temp = temp & ~water[j // n_row][j % n_row]
+        # If a solution has this layout, the path is length equal to the number of 1 bits in i
+        F.add_constraint(temp >> length[n_ones])
+        constraint.at_most_one(F, *length)
+
+    return F
+
+
+def get_longest(length_values):
+    # Given the lengths of each solution path, return the largest length number.
+    # Get solution lengths
+    for i, e in enumerate(length_values):
+        if e:
+            G.add_constraint(length[i+1])
+        else:
+            G.add_constraint(~length[i+1])
+
+    # If i is the largest length, there is no longer length
+    temp = length[n_row * n_col]
+    for i in range(n_row * n_col - 1, 1, -1):
+        G.add_constraint(length[i] >> ~temp)
+        temp = temp | length[i]
+    constraint.at_most_one(G, *length)  # Might not be needed
+
+    return G
+
+
 if __name__ == "__main__":
     T = theory()
     T = T.compile()
 
     print("\nSatisfiable: %s" % T.satisfiable())
-    print_theory(T.solve(), 'objects')
+    # print_theory(T.solve(), 'objects')
+    all_solutions = dsharp.compile(T.to_CNF(), smooth=True).model_count()
+
+    lengths = []
+    for solution in all_solutions:
+        U = get_length(solution)
+        U = U.compile()
+        lengths.append(U.solve())
+    
+    length_values = [False for _ in range(n_row * n_col + 1)]
+    for i in lengths:
+        for j in range(1, n_row * n_col + 1):
+            if lengths[length[j]]:
+                length_values[j] = True
+
+    V = get_longest(length_values)
+    V = V.compile()
+    longest_length = V.solve()
+
+    for i, e in enumerate(lengths):
+        if e[length[longest_length]]:
+            print(all_solutions[i])
+            break
+
