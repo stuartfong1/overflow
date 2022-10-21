@@ -46,6 +46,21 @@ class Water:
     def __repr__(self) -> str:
         return f"W({self.row}, {self.col})"
 
+@proposition(F)
+class Water:
+    """
+    Proposition representing a tile that contains water.
+    self.row - The row that the tile is in.
+    self.col - The column that the tile is in.
+    """
+
+    def __init__(self, row, col):
+        self.row = row
+        self.col = col
+
+    def __repr__(self) -> str:
+        return f"W({self.row}, {self.col})"
+
 
 @proposition(E)
 class Link:
@@ -78,19 +93,38 @@ class Length:
     def __repr__(self) -> str:
         return f"len {self.number}"
 
+@proposition(G)
+class Length:
+    """
+    Proposition representing the length of a path.
+    self.number: The number that the proposition represents
+    """
+
+    def __init__(self, number):
+        self.number = number
+
+    def __repr__(self) -> str:
+        return f"len {self.number}"
+
 
 # - = straight
 # + = bridge
 # L = curved
 # M = moat
 # O = ocean
+# level_layout = [
+#     [" L-MMML-L"],
+#     ["-LLLLL-LL"],
+#     ["LL-L++++L"],
+#     ["L+L--L+L-"],
+#     ["LL-LLLL-L"],
+#     ["     O   "]
+# ]
+
 level_layout = [
-    [" L-MMML-L"],
-    ["-LLLLL-LL"],
-    ["LL-L++++L"],
-    ["L+L--L+L-"],
-    ["LL-LLLL-L"],
-    ["     O   "]
+    ["   "],
+    ["O-M"],
+    ["   "]
 ]
 
 n_row = len(level_layout)
@@ -253,13 +287,13 @@ def theory():
                     elif (c == 0):  # Left wall
                         E.add_constraint(water[r][c] >> (
                             ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
-                            ( ~link_up[r][c] & link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
+                            | ( ~link_up[r][c] & link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
                             | (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & link_right[r][c] & water[r][c+1])  # Right
                         ))
                     elif (c == n_col - 1):  # Right wall
                         E.add_constraint(water[r][c] >> (
                             ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
-                            ( ~link_up[r][c] & link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
+                            | ( ~link_up[r][c] & link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
                             | (~link_up[r][c] & ~link_down[r][c] & link_left[r][c] & ~link_right[r][c] & water[r][c-1])  # Left
                         ))
                     
@@ -313,7 +347,7 @@ def theory():
                     elif (c == 0):  # Left wall
                         E.add_constraint(
                             ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
-                            ( ~link_up[r][c] & link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
+                            | ( ~link_up[r][c] & link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
                             | (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & link_right[r][c] & water[r][c+1])  # Right
                         )
                     elif (c == n_col - 1):  # Right wall
@@ -331,7 +365,7 @@ def theory():
                     )
             # Blank tile
             else:
-                constraint.add_none_of(E, straight[r][c], curved[r][c], bridge[r][c], moat[r][c], ocean[r][c])
+                constraint.add_none_of(E, straight[r][c], curved[r][c], bridge[r][c], moat[r][c], ocean[r][c], link_up[r][c], link_down[r][c], link_left[r][c], link_right[r][c])
 
             # A tile can be at most one of straight, curved, bridge, moat, ocean
             # If none, it is a blank tile
@@ -437,7 +471,7 @@ def get_length(solution):
 
     # Iterate over every possible subset of the tiles.
     # If a bit is on, there is water in tile j. Else, it does not contain water.
-    for i in range(2 ** (n_row * n_col)):
+    for i in range(1, 2 ** (n_row * n_col)):
         n_ones = 0
         if i & 1 == 1:
             temp = water[0][0]
@@ -448,13 +482,13 @@ def get_length(solution):
             if i & (1 << j) > 0:
                 n_ones += 1
                 # Tile must contain water
-                temp = temp & water[j // n_row][j % n_row]
+                temp = temp & water[j // n_col][j % n_col]
             else:
                 # Tile must not contain water
-                temp = temp & ~water[j // n_row][j % n_row]
+                temp = temp & ~water[j // n_col][j % n_col]
         # If a solution has this layout, the path is length equal to the number of 1 bits in i
         F.add_constraint(temp >> length[n_ones])
-        constraint.at_most_one(F, *length)
+        constraint.add_at_most_one(F, *length)
 
     return F
 
@@ -462,7 +496,7 @@ def get_length(solution):
 def get_longest(length_values):
     # Given the lengths of each solution path, return the largest length number.
     # Get solution lengths
-    for i, e in enumerate(length_values):
+    for i, e in enumerate(length_values[1:]):
         if e:
             G.add_constraint(length[i+1])
         else:
@@ -473,7 +507,7 @@ def get_longest(length_values):
     for i in range(n_row * n_col - 1, 1, -1):
         G.add_constraint(length[i] >> ~temp)
         temp = temp | length[i]
-    constraint.at_most_one(G, *length)  # Might not be needed
+    #constraint.add_at_most_one(G, *length)  # Might not be needed
 
     return G
 
@@ -484,10 +518,13 @@ if __name__ == "__main__":
 
     print("\nSatisfiable: %s" % T.satisfiable())
     # print_theory(T.solve(), 'objects')
-    all_solutions = dsharp.compile(T.to_CNF(), smooth=True).model_count()
+    print("# Solutions: %d" % count_solutions(T))
+    all_solutions = dsharp.compile(T.to_CNF(), smooth=True).models()
+    all_solutions = [i for i in all_solutions]
 
     lengths = []
-    for solution in all_solutions:
+    for i, solution in enumerate(all_solutions):
+        print("Getting length of solution", i)
         U = get_length(solution)
         U = U.compile()
         lengths.append(U.solve())
@@ -495,12 +532,16 @@ if __name__ == "__main__":
     length_values = [False for _ in range(n_row * n_col + 1)]
     for i in lengths:
         for j in range(1, n_row * n_col + 1):
-            if lengths[length[j]]:
+            if i[length[j]]:
                 length_values[j] = True
 
     V = get_longest(length_values)
     V = V.compile()
     longest_length = V.solve()
+    for i, e in enumerate(longest_length):
+        if longest_length[e]:
+            longest_length = e.number
+            break
 
     for i, e in enumerate(lengths):
         if e[length[longest_length]]:
