@@ -1,5 +1,5 @@
-from bauhaus import Encoding, proposition, constraint, print_theory
-from bauhaus.utils import count_solutions, likelihood
+from bauhaus import Encoding, proposition, constraint
+from bauhaus.utils import count_solutions
 from nnf import dsharp
 
 E = Encoding()
@@ -49,6 +49,7 @@ class Water:
 class WaterF:
     """
     Proposition representing a tile that contains water.
+    Identical to the Water class but for proposition F.
     self.row - The row that the tile is in.
     self.col - The column that the tile is in.
     """
@@ -142,13 +143,12 @@ length = [None] + [Length(i + 1) for i in range(n_row * n_col)]
 
 # Constraints
 
-
-def theory():
-    # Each level has a certain layout of tiles
-    # Each tile can only link in a certain way
+def get_solution():
+    # Specify how tiles link to one another when transporting water
     for r, row in enumerate(level_layout):
         for c, tile in enumerate(row[0]):
             # Straight tile
+            # A straight path that goes up and down or left and right
             if tile == '-':
                 E.add_constraint(straight[r][c])
                 if (r == 0 and c == 0) or (r == n_row - 1 and c == 0) or (r == 0 and c == n_col - 1) or (r == n_row - 1 and c == n_col - 1):  # Corners
@@ -167,6 +167,7 @@ def theory():
                         | (~link_up[r][c] & ~link_down[r][c] &  link_left[r][c] &  link_right[r][c] & water[r][c-1] & water[r][c+1])  # Left & right
                     ))
             # Curved tile
+            # Bends the path of the water by 90 degrees in any direction
             elif tile == 'L':
                 E.add_constraint(curved[r][c])
                 if (r == 0 or r == n_row - 1 or c == 0 or c == n_col - 1):  # Edges
@@ -218,6 +219,7 @@ def theory():
                         | (~link_up[r][c] &  link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r+1][c] & water[r][c+1])  # Down & right
                     ))
             # Bridge tile
+            # Allows water to flow straight in either or both directions
             elif tile == '+':
                 E.add_constraint(bridge[r][c])
                 if (r == 0 and c == 0) or (r == n_row - 1 and c == 0) or (r == 0 and c == n_col - 1) or (r == n_row - 1 and c == n_col - 1):  # Corners
@@ -237,6 +239,8 @@ def theory():
                         | ( link_up[r][c] &  link_down[r][c] &  link_left[r][c] &  link_right[r][c] & water[r-1][c] & water[r+1][c] & water[r][c-1] & water[r][c+1])  # All 4 directions
                     ))
             # Moat tile
+            # The goal of the level
+            # To avoid duplicate solutions, links only in one direction
             elif tile == 'M':
                 E.add_constraint(moat[r][c])
                 if (r == 0 or r == n_row - 1 or c == 0 or c == n_col - 1):  # Edges
@@ -297,6 +301,8 @@ def theory():
                         | (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r][c+1] & ~moat[r][c+1])  # Right
                     ))
             # Ocean tile
+            # The start of the water
+            # Links only in one direction 
             elif tile == 'O':
                 E.add_constraint(ocean[r][c])
                 if (r == 0 or r == n_row - 1 or c == 0 or c == n_col - 1):  # Edges
@@ -363,7 +369,7 @@ def theory():
             # If none, it is a blank tile
             constraint.add_at_most_one(E, straight[r][c], curved[r][c], bridge[r][c], moat[r][c], ocean[r][c])
 
-            # Remove duplicate solutions
+            # Restrict linking to remove duplicate solutions
             E.add_constraint(~water[r][c] >> (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c]))
 
     # Water
@@ -378,40 +384,40 @@ def theory():
                     | water[r+1][c] & link_down[r][c])
             )
     for c in range(1, n_col - 1):
-        E.add_constraint(water[0][c] >>
+        E.add_constraint(water[0][c] >>  # Top edge
                 (ocean[0][c] | water[1][c] & link_down[0][c]
                 | water[0][c-1] & link_left[0][c]
                 | water[0][c+1] & link_right[0][c])
         )
-        E.add_constraint(water[n_row-1][c] >>
+        E.add_constraint(water[n_row-1][c] >>  # Bottom edge
                 (ocean[n_row-1][c] | water[n_row-2][c] & link_up[n_row-1][c]
                 | water[n_row-1][c-1] & link_left[n_row-1][c]
                 | water[n_row-1][c+1] & link_right[n_row-1][c])
         )
     for r in range(1, n_row - 1):
-        E.add_constraint(water[r][0] >>
+        E.add_constraint(water[r][0] >>  # Left edge
                 (ocean[r][0] | water[r-1][0] & link_up[r][0]
                 | water[r+1][0] & link_down[r][0]
                 | water[r][1] & link_right[r][0])
         )
-        E.add_constraint(water[r][n_col-1] >>
+        E.add_constraint(water[r][n_col-1] >>  # Right edge
                 (ocean[r][n_col-1] | water[r-1][n_col-1] & link_up[r][n_col-1]
                 | water[r+1][n_col-1] & link_down[r][n_col-1]
                 | water[r][n_col-2] & link_left[r][n_col-1])
         )
-    E.add_constraint(water[0][0] >>
+    E.add_constraint(water[0][0] >>  # Top left corner
             (ocean[0][0] | water[1][0] & link_down[0][0]
             | water[0][1] & link_right[0][0])
     )
-    E.add_constraint(water[0][n_col-1] >>
+    E.add_constraint(water[0][n_col-1] >>  # Top right corner
             (ocean[0][n_col-1] | water[1][n_col-1] & link_down[0][n_col-1]
             | water[0][n_col-2] & link_left[0][n_col-1])
     )
-    E.add_constraint(water[n_row-1][0] >>
+    E.add_constraint(water[n_row-1][0] >>  # Bottom left corner
             (ocean[n_row-1][0] | water[n_row-2][0] & link_up[n_row-1][0]
             | water[n_row-1][1] & link_right[n_row-1][0])
     )
-    E.add_constraint(water[n_row-1][n_col-1] >>
+    E.add_constraint(water[n_row-1][n_col-1] >>  # Bottom right corner
             (ocean[n_row-1][n_col-1] | water[n_row-2][n_col-1] & link_up[n_row-1][n_col-1]
             | water[n_row-1][n_col-2] & link_left[n_row-1][n_col-1])
     )
@@ -449,7 +455,7 @@ def theory():
         for c in range(n_col):
             temp = temp | moat[r][c] & water[r][c]
     E.add_constraint(win >> temp)
-    E.add_constraint(win)
+    E.add_constraint(win)  # Find a solution
 
     return E
 
@@ -494,7 +500,7 @@ def get_length(solution):
 
 if __name__ == "__main__":
     # Find all paths
-    T = theory()
+    T = get_solution()
     T = T.compile()
 
     print("\nSatisfiable: %s" % T.satisfiable())
