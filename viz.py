@@ -1,16 +1,23 @@
 from sty import fg, bg, rs
 import random
 
+
 class Path:
     """
     Class representing a path in a level.
+    self.type - The type of tile. Can be one of S, C, B, M, O, blank
+    self.link - Whether the tile links up, down, left, right
+    self.water - Whether or not the tile contains water.
+    self.row - The row that the tile is in.
+    self.col - The column that the tile is in.
     """
     def __init__(self, row, col) -> None:
         self.type = "blank"
-        self.link = [False, False, False, False]
+        self.link = [False, False, False, False]  # [U, D, L, R]
         self.water = False
         self.row = row
         self.col = col
+
 
 def convert_solution(sol, level_layout):
     """
@@ -39,10 +46,13 @@ def viz_level(level):
     n_row = len(level)
     n_col = len(level[0])
 
+    # Get character to be printed
     for r in range(n_row):
         for c in range(n_col):
             path = level[r][c]
             char = ' '
+
+            # Straight tile
             if path.type == 'S':
                 if path.link == [False, False, True, True]:
                     char = '━'
@@ -50,7 +60,9 @@ def viz_level(level):
                     char = '┃'
                 else:
                     char = random.choice("━┃")
-            if path.type == 'C':
+
+            # Curved tile
+            elif path.type == 'C':  
                 if path.link == [False, True, False, True]:
                     char = '┏'
                 elif path.link == [False, True, True, False]:
@@ -61,11 +73,17 @@ def viz_level(level):
                     char = '┛'
                 else:
                     char = random.choice("┏┓┗┛")
-            if path.type == 'B':
+
+            # Bridge tile
+            elif path.type == 'B':
                 char = '╋'
-            if path.type == 'M':
+
+            # Moat tile
+            elif path.type == 'M':
                 char = '#'
-            if path.type == 'O':
+
+            # Ocean tile
+            elif path.type == 'O':
                 if path.link == [True, False, False, False]:
                     char = 'U'
                 elif path.link == [False, True, False, False]:
@@ -76,9 +94,10 @@ def viz_level(level):
                     char = '⊃'
                 else:
                     char = random.choice("U∩⊂⊃")
+
+            # Color the tiles that contain water
             if path.water:
                 print(bg.blue + fg.white + char + rs.bg + rs.fg, end='')
             else:
                 print(fg.white + char + rs.fg, end='')
         print()
-
