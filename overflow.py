@@ -1,8 +1,36 @@
 from bauhaus import Encoding, proposition, constraint
 from bauhaus.utils import count_solutions
 from nnf import dsharp
+import argparse
+
 import viz
 
+
+# Parse arguments
+parser = argparse.ArgumentParser(
+        prog = 'Overflow',
+        description = 'Solver for the Overflow game.'
+)
+
+parser.add_argument('-n', '--no-logic', 
+        action='store_true', 
+        default=False,
+        help='Use the Python implementation of calculating the path length (default=False)'
+)
+
+parser.add_argument('-v', '--verbose',
+        action='store_true',
+        default=False,
+        help='Print detailed processing information onto the screen (default=False)'
+)
+
+args = parser.parse_args()
+
+no_logic = vars(args)['no_logic']  # Use Python to calculate path length
+verbose = vars(args)['verbose']  # Set verbosity
+
+
+# Create Propositions
 E = Encoding()
 F = Encoding()
 
@@ -100,6 +128,7 @@ class Length:
     def __repr__(self) -> str:
         return f"len {self.number}"
 
+# Create level layout
 
 # - = straight
 # + = bridge
@@ -515,27 +544,56 @@ if __name__ == "__main__":
     all_solutions = dsharp.compile(T.to_CNF(), smooth=True).models()
     all_solutions = [i for i in all_solutions]
 
-    # Get the lengths of each path
-    lengths = []
-    for i, solution in enumerate(all_solutions):
-        print(f"Getting length of solution {i + 1}...")
-        U = get_length(solution)
-        U = U.compile()
-        lengths.append(U.solve())
-    
-    # Return the path with the maximum length
-    length_values = [False for _ in range(n_row * n_col + 1)]
-    for l in lengths:
-        for i in range(1, n_row * n_col + 1):
-            if l[length[i]]:
-                length_values[i] = True
-    longest_length = [i for i, e in enumerate(length_values) if e][-1]
-    for i, l in enumerate(lengths):
-        if l[length[longest_length]]:
-            longest_solution_dict = all_solutions[i]
-            # print("Longest solution:", longest_solution_dict)
-            break
-    
+    # Python implementation of finding longest solution
+    if no_logic:
+        # Get the lengths of each path
+        lengths = []
+        for i, solution in enumerate(all_solutions):
+            if verbose:
+                print(f"Getting length of solution {i + 1}...")
+            len_path = 0
+            for r in range(n_row):
+                for c in range(n_col):
+                    if solution[water[r][c]]:
+                        len_path += 1
+            lengths.append(len_path)
+
+        # Get the maximum length
+        longest_length = max(lengths)
+
+        # Return the path with the longest length
+        for i, l in enumerate(lengths):
+            if l == longest_length:
+                longest_solution_dict = all_solutions[i]
+                break
+        
+    # Logic implementation of finding longest solution (slow)
+    else:
+        # Get the lengths of each path
+        lengths = []
+        for i, solution in enumerate(all_solutions):
+            if verbose:
+                print(f"Getting length of solution {i + 1}...")
+            U = get_length(solution)
+            U = U.compile()
+            lengths.append(U.solve())
+        
+        # Get the maximum length
+        longest_length = 0
+        for l in lengths:
+            for i in range(n_row * n_col, 0, -1):
+                if l[length[i]] and i > longest_length:
+                    longest_length = i
+                    break
+        
+        # Return the path with the longest length
+        for i, l in enumerate(lengths):
+            if l[length[longest_length]]:
+                longest_solution_dict = all_solutions[i]
+                break
+
+    print("Longest solution has length", longest_length)
+
     longest_solution = viz.convert_solution(longest_solution_dict, level_layout)
     viz.viz_level(longest_solution)
     
