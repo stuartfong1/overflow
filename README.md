@@ -12,7 +12,7 @@ This is a solver for a game called Overflow, a mini-game inside of the popular m
 ### Building
 
 ```bash
-docker build -t cisc204
+docker build -t cisc204 .
 ```
 
 ### Running
