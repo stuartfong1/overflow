@@ -9,19 +9,19 @@ This is a solver for a game called Overflow, a mini-game inside of the popular m
 ## 🌊 To run things
 
 
-### Building
+### Build Docker image
 
 ```bash
 docker build -t cisc204 .
 ```
 
-### Running
+### Run Docker image
 
 ```bash
 docker run -it -v $(pwd):/PROJECT cisc204
 ```
 
-#### To run the program
+### Run the program
 ```bash
 python3 overflow.py
 ```
