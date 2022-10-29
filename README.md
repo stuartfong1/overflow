@@ -1,4 +1,4 @@
-# 🏖️ CISC/CMPE 204 Modelling Project: Overflow
+# 🏖️ CISC 204 Modelling Project: Overflow
 
 ![Overflow game logo](https://static.wikia.nocookie.net/ajplaywild/images/c/cf/Minigame_splash_overflow.png/revision/latest?cb=20210522132908)
 
