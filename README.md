@@ -19,6 +19,10 @@ docker build -t cisc204
 
 ```bash
 docker run -it -v $(pwd):/PROJECT cisc204
+```
+
+#### To run the program
+```bash
 python3 overflow.py
 ```
 
@@ -35,4 +39,6 @@ python3 overflow.py
 ### Custom code
 
 * `overflow.py`: Contains the code to build and run the model.
+* `viz.py`: Used to visualize solutions.
+
 

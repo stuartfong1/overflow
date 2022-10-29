@@ -1,6 +1,7 @@
 from bauhaus import Encoding, proposition, constraint
 from bauhaus.utils import count_solutions
 from nnf import dsharp
+import viz
 
 E = Encoding()
 F = Encoding()
@@ -19,15 +20,17 @@ class Tile:
     self.row - The row that the tile is in.
     self.col - The column that the tile is in.
     self.tile_type - The type of tile. Can be one of S, C, B, M, O
+    self.prop - Identifies the tile as a regular tile.
     """
 
-    def __init__(self, row, col, tile_type):
+    def __init__(self, row, col, tile_type, prop='tile'):
         self.row = row
         self.col = col
-        self.type = tile_type
+        self.tile_type = tile_type
+        self.prop = prop
 
     def __repr__(self) -> str:
-        return f"{self.type}({self.row}, {self.col})"
+        return f"{self.tile_type}({self.row}, {self.col})"
 
 
 @proposition(E)
@@ -36,11 +39,13 @@ class Water:
     Proposition representing a tile that contains water.
     self.row - The row that the tile is in.
     self.col - The column that the tile is in.
+    self.prop - Identifies the tile as a water tile.
     """
 
-    def __init__(self, row, col):
+    def __init__(self, row, col, prop='water'):
         self.row = row
         self.col = col
+        self.prop = prop
 
     def __repr__(self) -> str:
         return f"W({self.row}, {self.col})"
@@ -69,12 +74,14 @@ class Link:
     self.row - The row that the tile is in.
     self.col - The column that the tile is in.
     self.direction - The direction of the link. Can be one of U, D, L, R
+    self.prop - Identifies the tile as a link.
     """
 
-    def __init__(self, row, col, direction):
+    def __init__(self, row, col, direction, prop='link'):
         self.row = row
         self.col = col
         self.direction = direction
+        self.prop = prop
 
     def __repr__(self) -> str:
         return f"L{self.direction}({self.row}, {self.col})"
@@ -525,6 +532,11 @@ if __name__ == "__main__":
     longest_length = [i for i, e in enumerate(length_values) if e][-1]
     for i, l in enumerate(lengths):
         if l[length[longest_length]]:
-            print("Longest solution:", all_solutions[i])
+            longest_solution_dict = all_solutions[i]
+            # print("Longest solution:", longest_solution_dict)
             break
+    
+    longest_solution = viz.convert_solution(longest_solution_dict, level_layout)
+    viz.viz_level(longest_solution)
+    
 
