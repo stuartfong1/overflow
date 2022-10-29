@@ -43,6 +43,10 @@ def convert_solution(sol, level_layout):
     return level
 
 def viz_level(level):
+    """
+    Visualize a solution to a level.
+    level - The output of convert_solution
+    """
     n_row = len(level)
     n_col = len(level[0])
 
