@@ -34,7 +34,7 @@ python3 overflow.py
 
 `--verbose`: Print detailed processing information onto the screen.
 
-#### Example output
+### Example output
 ![Output of program on example level](https://i.imgur.com/btR9ons.png)
 
 
