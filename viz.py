@@ -27,7 +27,7 @@ def convert_solution(sol, level_layout):
     level_layout - The layout of the level.
     """
     n_row = len(level_layout)
-    n_col = len(level_layout[0][0])
+    n_col = len(level_layout[0])
     link_map = {'U': 0, 'D': 1, 'L': 2, 'R': 3}
 
     level = [[Path(r, c) for c in range(n_col)] for r in range(n_row)]

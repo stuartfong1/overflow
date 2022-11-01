@@ -142,36 +142,36 @@ class Length:
 # O = ocean
 
 # level_layout = [  # Self-loops
-#     ["L-LMMML-L"],
-#     ["-LLL--LL-"],
-#     ["--L---LL-"],
-#     ["L+LLLL+-L"],
-#     ["LLLLLL---"],
-#     ["      O  "]
+#     "L-LMMML-L",
+#     "-LLL--LL-",
+#     "--L---LL-",
+#     "L+LLLL+-L",
+#     "LLLLLL---",
+#     "      O  "
 # ]
 
 level_layout = [  # From project proposal
-    [" L-MMML-L"],
-    ["-LLLLL-LL"],
-    ["LL-L++++L"],
-    ["L+L--L+L-"],
-    ["LL-LLLL-L"],
-    ["     O   "]
+    " L-MMML-L",
+    "-LLLLL-LL",
+    "LL-L++++L",
+    "L+L--L+L-",
+    "LL-LLLL-L",
+    "     O   "
 ]
 
 # level_layout = [  # Two paths with different lengths
-#     ["-LL"],
-#     ["O+M"],
-#     ["LL-"]
+#     "-LL",
+#     "O+M",
+#     "LL-"
 # ]
 
 # level_layout = [  # Two paths with the same length
-#     ["OL"],
-#     ["LM"]
+#     "OL",
+#     "LM"
 # ]
 
 n_row = len(level_layout)
-n_col = len(level_layout[0][0])
+n_col = len(level_layout[0])
 
 # Propositions
 straight = [[Tile(r, c, 'S') for c in range(n_col)] for r in range(n_row)]
@@ -203,7 +203,7 @@ def get_solution(detect_loop=False, self_loops=[]):
 
     # Specify how tiles link to one another when transporting water
     for r, row in enumerate(level_layout):
-        for c, tile in enumerate(row[0]):
+        for c, tile in enumerate(row):
             # Straight tile
             # A straight path that goes up and down or left and right
             if tile == '-':
