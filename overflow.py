@@ -586,6 +586,8 @@ if __name__ == "__main__":
             if v and prop == 'link':
                 self_loop.append(k)
         self_loops.append(self_loop)
+    if verbose:
+            print(f"Removed {len(self_loops) - 1} self-loops.")
 
     # Find all paths
     T = get_solution(self_loops=self_loops)
