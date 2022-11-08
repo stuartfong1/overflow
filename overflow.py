@@ -593,62 +593,62 @@ if __name__ == "__main__":
     T = get_solution(self_loops=self_loops)
     T = T.compile()
 
-    print("\nSatisfiable: %s" % T.satisfiable())
-    print("Number of solutions: %d" % count_solutions(T))
-    all_solutions = dsharp.compile(T.to_CNF(), smooth=True).models()
-    all_solutions = [i for i in all_solutions]
+    is_satisfiable = T.satisfiable()
+    print(f"\nSatisfiable: {is_satisfiable}")
+    if is_satisfiable:
+        print(f"Number of solutions: {count_solutions(T)}")
+        all_solutions = dsharp.compile(T.to_CNF(), smooth=True).models()
+        all_solutions = [i for i in all_solutions]
 
-    # Python implementation of finding longest solution
-    if no_logic:
-        # Get the lengths of each path
-        lengths = []
-        for i, solution in enumerate(all_solutions):
-            if verbose:
-                print(f"Getting length of solution {i + 1}...")
-            len_path = 0
-            for r in range(n_row):
-                for c in range(n_col):
-                    if solution[water[r][c]]:
-                        len_path += 1
-            lengths.append(len_path)
+        # Python implementation of finding longest solution
+        if no_logic:
+            # Get the lengths of each path
+            lengths = []
+            for i, solution in enumerate(all_solutions):
+                if verbose:
+                    print(f"Getting length of solution {i + 1}...")
+                len_path = 0
+                for r in range(n_row):
+                    for c in range(n_col):
+                        if solution[water[r][c]]:
+                            len_path += 1
+                lengths.append(len_path)
 
-        # Get the maximum length
-        longest_length = max(lengths)
+            # Get the maximum length
+            longest_length = max(lengths)
 
-        # Return the path with the longest length
-        for i, l in enumerate(lengths):
-            if l == longest_length:
-                longest_solution_dict = all_solutions[i]
-                break
-        
-    # Logic implementation of finding longest solution (slow)
-    else:
-        # Get the lengths of each path
-        lengths = []
-        for i, solution in enumerate(all_solutions):
-            if verbose:
-                print(f"Getting length of solution {i + 1}...")
-            U = get_length(solution)
-            U = U.compile()
-            lengths.append(U.solve())
-        
-        # Get the maximum length
-        longest_length = 0
-        for l in lengths:
-            for i in range(n_row * n_col, 0, -1):
-                if l[length[i]] and i > longest_length:
-                    longest_length = i
+            # Return the path with the longest length
+            for i, l in enumerate(lengths):
+                if l == longest_length:
+                    longest_solution_dict = all_solutions[i]
                     break
-        
-        # Return the path with the longest length
-        for i, l in enumerate(lengths):
-            if l[length[longest_length]]:
-                longest_solution_dict = all_solutions[i]
-                break
+            
+        # Logic implementation of finding longest solution (slow)
+        else:
+            # Get the lengths of each path
+            lengths = []
+            for i, solution in enumerate(all_solutions):
+                if verbose:
+                    print(f"Getting length of solution {i + 1}...")
+                U = get_length(solution)
+                U = U.compile()
+                lengths.append(U.solve())
+            
+            # Get the maximum length
+            longest_length = 0
+            for l in lengths:
+                for i in range(n_row * n_col, 0, -1):
+                    if l[length[i]] and i > longest_length:
+                        longest_length = i
+                        break
+            
+            # Return the path with the longest length
+            for i, l in enumerate(lengths):
+                if l[length[longest_length]]:
+                    longest_solution_dict = all_solutions[i]
+                    break
 
-    print("Longest solution has length", longest_length)
+        print("Longest solution has length", longest_length)
 
-    longest_solution = viz.convert_solution(longest_solution_dict, level_layout)
-    viz.viz_level(longest_solution)
-    
-
+        longest_solution = viz.convert_solution(longest_solution_dict, level_layout)
+        viz.viz_level(longest_solution)
