@@ -34,7 +34,7 @@ def convert_solution(sol, level_layout):
     for k, v in sol.items():
         prop = getattr(k, 'prop', None)
         if v and prop == 'tile':
-            level[k.row][k.col].type = k.tile_type
+            level[k.row][k.col].type = level_layout[k.row][k.col]
         elif prop == 'water':
             level[k.row][k.col].water = v
         elif prop == 'link':
@@ -57,7 +57,7 @@ def viz_level(level):
             char = ' '
 
             # Straight tile
-            if path.type == 'S':
+            if path.type == '-':
                 if path.link == [False, False, True, True]:
                     char = '━'
                 elif path.link == [True, True, False, False]:
@@ -66,7 +66,7 @@ def viz_level(level):
                     char = random.choice("━┃")
 
             # Curved tile
-            elif path.type == 'C':  
+            elif path.type == 'L':  
                 if path.link == [False, True, False, True]:
                     char = '┏'
                 elif path.link == [False, True, True, False]:
@@ -79,7 +79,7 @@ def viz_level(level):
                     char = random.choice("┏┓┗┛")
 
             # Bridge tile
-            elif path.type == 'B':
+            elif path.type == '+':
                 char = '╋'
 
             # Moat tile

@@ -50,7 +50,7 @@ class Tile:
     Proposition representing a type of tile.
     self.row - The row that the tile is in.
     self.col - The column that the tile is in.
-    self.tile_type - The type of tile. Can be one of S, C, B, M, O
+    self.tile_type - The type of tile. Can be one of R, M, O
     self.prop - Identifies the tile as a regular tile.
     """
 
@@ -174,11 +174,9 @@ n_row = len(level_layout)
 n_col = len(level_layout[0])
 
 # Propositions
-straight = [[Tile(r, c, 'S') for c in range(n_col)] for r in range(n_row)]
-curved   = [[Tile(r, c, 'C') for c in range(n_col)] for r in range(n_row)]
-bridge   = [[Tile(r, c, 'B') for c in range(n_col)] for r in range(n_row)]
-moat     = [[Tile(r, c, 'M') for c in range(n_col)] for r in range(n_row)]
-ocean    = [[Tile(r, c, 'O') for c in range(n_col)] for r in range(n_row)]
+regular = [[Tile(r, c, 'R') for c in range(n_col)] for r in range(n_row)]
+moat    = [[Tile(r, c, 'M') for c in range(n_col)] for r in range(n_row)]
+ocean   = [[Tile(r, c, 'O') for c in range(n_col)] for r in range(n_row)]
 
 water = [[Water(r, c) for c in range(n_col)] for r in range(n_row)]
 
@@ -207,7 +205,7 @@ def get_solution(detect_loop=False, self_loops=[]):
             # Straight tile
             # A straight path that goes up and down or left and right
             if tile == '-':
-                E.add_constraint(straight[r][c])
+                E.add_constraint(regular[r][c])
                 if (r == 0 and c == 0) or (r == n_row - 1 and c == 0) or (r == 0 and c == n_col - 1) or (r == n_row - 1 and c == n_col - 1):  # Corners
                     E.add_constraint(~water[r][c])
                 elif c == 0 or c == n_col - 1:   # Left & right walls
@@ -226,7 +224,7 @@ def get_solution(detect_loop=False, self_loops=[]):
             # Curved tile
             # Bends the path of the water by 90 degrees in any direction
             elif tile == 'L':
-                E.add_constraint(curved[r][c])
+                E.add_constraint(regular[r][c])
                 if (r == 0 or r == n_row - 1 or c == 0 or c == n_col - 1):  # Edges
 
                     # Corners
@@ -278,7 +276,7 @@ def get_solution(detect_loop=False, self_loops=[]):
             # Bridge tile
             # Allows water to flow straight in either or both directions
             elif tile == '+':
-                E.add_constraint(bridge[r][c])
+                E.add_constraint(regular[r][c])
                 if (r == 0 and c == 0) or (r == n_row - 1 and c == 0) or (r == 0 and c == n_col - 1) or (r == n_row - 1 and c == n_col - 1):  # Corners
                     E.add_constraint(~water[r][c])
                 elif (r == 0 or r == n_row - 1):
@@ -362,7 +360,7 @@ def get_solution(detect_loop=False, self_loops=[]):
             # Links only in one direction 
             elif tile == 'O':
                 if detect_loop:
-                    constraint.add_none_of(E, straight[r][c], curved[r][c], bridge[r][c], moat[r][c], ocean[r][c], link_up[r][c], link_down[r][c], link_left[r][c], link_right[r][c])
+                    constraint.add_none_of(E, regular[r][c], moat[r][c], ocean[r][c], link_up[r][c], link_down[r][c], link_left[r][c], link_right[r][c])
                     continue
                 else:
                     E.add_constraint(ocean[r][c])
@@ -424,11 +422,11 @@ def get_solution(detect_loop=False, self_loops=[]):
                         )
             # Blank tile
             else:
-                constraint.add_none_of(E, straight[r][c], curved[r][c], bridge[r][c], moat[r][c], ocean[r][c], link_up[r][c], link_down[r][c], link_left[r][c], link_right[r][c])
+                constraint.add_none_of(E, regular[r][c], moat[r][c], ocean[r][c], link_up[r][c], link_down[r][c], link_left[r][c], link_right[r][c])
 
             # A tile can be at most one of straight, curved, bridge, moat, ocean
             # If none, it is a blank tile
-            constraint.add_at_most_one(E, straight[r][c], curved[r][c], bridge[r][c], moat[r][c], ocean[r][c])
+            constraint.add_at_most_one(E, regular[r][c], moat[r][c], ocean[r][c])
 
             # Restrict linking to remove duplicate solutions
             E.add_constraint(~water[r][c] >> (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c]))
