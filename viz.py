@@ -28,7 +28,6 @@ def convert_solution(sol, level_layout):
     """
     n_row = len(level_layout)
     n_col = len(level_layout[0])
-    link_map = {'U': 0, 'D': 1, 'L': 2, 'R': 3}
 
     level = [[Path(r, c) for c in range(n_col)] for r in range(n_row)]
     for k, v in sol.items():
@@ -38,7 +37,12 @@ def convert_solution(sol, level_layout):
         elif prop == 'water':
             level[k.row][k.col].water = v
         elif prop == 'link':
-            level[k.row][k.col].link[link_map[k.direction]] = v
+            if k.direction == 'V':
+                level[k.row + 1][k.col].link[0] = v
+                level[k.row][k.col].link[1] = v
+            elif k.direction == 'H':
+                level[k.row][k.col + 1].link[2] = v
+                level[k.row][k.col].link[3] = v
 
     return level
 

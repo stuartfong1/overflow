@@ -180,10 +180,15 @@ ocean   = [[Tile(r, c, 'O') for c in range(n_col)] for r in range(n_row)]
 
 water = [[Water(r, c) for c in range(n_col)] for r in range(n_row)]
 
-link_up    = [[Link(r, c, 'U') for c in range(n_col)] for r in range(n_row)]
-link_down  = [[Link(r, c, 'D') for c in range(n_col)] for r in range(n_row)]
-link_left  = [[Link(r, c, 'L') for c in range(n_col)] for r in range(n_row)]
-link_right = [[Link(r, c, 'R') for c in range(n_col)] for r in range(n_row)]
+# Create propositions for linking horizontally and vertically
+# Prevents repeated propositions for linking up & down, left & right
+link_horizontal = [[Link(r, c, 'H') for c in range(n_col - 1)] for r in range(n_row)]
+link_vertical = [[Link(r, c, 'V') for c in range(n_col)] for r in range(n_row - 1)]
+
+link_up    = [None] + link_vertical
+link_down  = link_vertical + [None]
+link_left  = [[None] + r for r in link_horizontal]
+link_right = [r + [None] for r in link_horizontal]
 
 win = Win()
 
@@ -206,15 +211,23 @@ def get_solution(detect_loop=False, self_loops=[]):
             # A straight path that goes up and down or left and right
             if tile == '-':
                 E.add_constraint(regular[r][c])
-                if (r == 0 and c == 0) or (r == n_row - 1 and c == 0) or (r == 0 and c == n_col - 1) or (r == n_row - 1 and c == n_col - 1):  # Corners
+                if r == 0 and c == 0 or r == n_row - 1 and c == 0 or r == 0 and c == n_col - 1 or r == n_row - 1 and c == n_col - 1:  # Corners
                     E.add_constraint(~water[r][c])
-                elif c == 0 or c == n_col - 1:   # Left & right walls
+                elif c == 0:   # Left wall
                     E.add_constraint(water[r][c] >> (
-                        ( link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c] & water[r+1][c])
+                        link_up[r][c] & link_down[r][c] & ~link_right[r][c] & water[r-1][c] & water[r+1][c]
                     ))
-                elif r == n_row - 1 or r == 0:  # Top & bottom walls
+                elif c == n_col - 1:  # Right wall
                     E.add_constraint(water[r][c] >> (
-                        ( ~link_up[r][c] & ~link_down[r][c] & link_left[r][c] & link_right[r][c] & water[r][c-1] & water[r][c+1])
+                        link_up[r][c] & link_down[r][c] & ~link_left[r][c] & water[r-1][c] & water[r+1][c]
+                    ))
+                elif r == 0:  # Top wall
+                    E.add_constraint(water[r][c] >> (
+                        ~link_down[r][c] & link_left[r][c] & link_right[r][c] & water[r][c-1] & water[r][c+1]
+                    ))
+                elif r == n_row - 1 or r == 0:  # Bottom wall
+                    E.add_constraint(water[r][c] >> (
+                        ~link_up[r][c] & link_left[r][c] & link_right[r][c] & water[r][c-1] & water[r][c+1]
                     ))
                 else:
                     E.add_constraint(water[r][c] >> (
@@ -225,47 +238,45 @@ def get_solution(detect_loop=False, self_loops=[]):
             # Bends the path of the water by 90 degrees in any direction
             elif tile == 'L':
                 E.add_constraint(regular[r][c])
-                if (r == 0 or r == n_row - 1 or c == 0 or c == n_col - 1):  # Edges
+                # Corners
+                if r == 0 and c == 0:  # Top left corner
+                    E.add_constraint(water[r][c] >> (
+                        link_down[r][c] & link_right[r][c] & water[r+1][c] & water[r][c+1]  # Down & right
+                    ))
+                elif r == 0 and c == n_col - 1:  # Top right corner
+                    E.add_constraint(water[r][c] >> (
+                        link_down[r][c] & link_left[r][c] & water[r+1][c] & water[r][c-1]  # Down & left
+                    ))
+                elif r == n_row - 1 and c == 0:  # Bottom left corner
+                    E.add_constraint(water[r][c] >> (
+                        link_up[r][c] & link_right[r][c] & water[r-1][c] & water[r][c+1]  # Up & right
+                    ))
+                elif r == n_row - 1 and c == n_col - 1:  # Bottom right corner
+                    E.add_constraint(water[r][c] >> (
+                        link_up[r][c] & link_left[r][c] & water[r-1][c] & water[r][c-1]  # Up & left
+                    ))
 
-                    # Corners
-                    if (r == 0 and c == 0):  # Top left corner
-                        E.add_constraint(water[r][c] >> (
-                            (~link_up[r][c] & link_down[r][c] & ~link_left[r][c] & link_right[r][c] & water[r+1][c] & water[r][c+1])  # Down & right
-                        ))
-                    elif (r == 0 and c == n_col - 1):  # Top right corner
-                        E.add_constraint(water[r][c] >> (
-                            (~link_up[r][c] & link_down[r][c] & link_left[r][c] & ~link_right[r][c] & water[r+1][c] & water[r][c-1])  # Down & left
-                        ))
-                    elif (r == n_row - 1 and c == 0):  # Bottom left corner
-                        E.add_constraint(water[r][c] >> (
-                            (link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & link_right[r][c] & water[r-1][c] & water[r][c+1])  # Up & right
-                        ))
-                    elif (r == n_row - 1 and c == n_col - 1):  # Bottom right corner
-                        E.add_constraint(water[r][c] >> (
-                            (link_up[r][c] & ~link_down[r][c] & link_left[r][c] & ~link_right[r][c] & water[r-1][c] & water[r][c-1])  # Up & left
-                        ))
-
-                    # Sides (w/o corners)
-                    elif (r == 0):  # Top wall
-                        E.add_constraint(water[r][c] >> (
-                              ( ~link_up[r][c] & link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r+1][c] & water[r][c+1])  # Down & right
-                            | ( ~link_up[r][c] & link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r+1][c] & water[r][c-1])  # Down & left
-                        ))
-                    elif (r == n_row - 1):  # Bottom wall
-                        E.add_constraint(water[r][c] >> (
-                              ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r-1][c] & water[r][c+1])  # Up & right
-                            | ( link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r-1][c] & water[r][c-1])  # Up & left
-                        ))
-                    elif (c == 0):  # Left wall
-                        E.add_constraint(water[r][c] >> (
-                              (~link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & link_right[r][c] & water[r+1][c] & water[r][c+1])  # Down & right
-                            | ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & link_right[r][c] & water[r-1][c] & water[r][c+1])  # Up & right
-                        ))
-                    elif (c == n_col - 1):  # Right wall
-                        E.add_constraint(water[r][c] >> (
-                              (~link_up[r][c] &  link_down[r][c] & link_left[r][c] & ~link_right[r][c] & water[r+1][c] & water[r][c-1])  # Down & left
-                            | ( link_up[r][c] & ~link_down[r][c] & link_left[r][c] & ~link_right[r][c] & water[r-1][c] & water[r][c-1])  # Up & left
-                        ))
+                # Sides (w/o corners)
+                elif r == 0:  # Top wall
+                    E.add_constraint(water[r][c] >> (
+                          (link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r+1][c] & water[r][c+1])  # Down & right
+                        | (link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r+1][c] & water[r][c-1])  # Down & left
+                    ))
+                elif r == n_row - 1:  # Bottom wall
+                    E.add_constraint(water[r][c] >> (
+                          ( link_up[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r-1][c] & water[r][c+1])  # Up & right
+                        | ( link_up[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r-1][c] & water[r][c-1])  # Up & left
+                    ))
+                elif c == 0:  # Left wall
+                    E.add_constraint(water[r][c] >> (
+                          (~link_up[r][c] &  link_down[r][c] & link_right[r][c] & water[r+1][c] & water[r][c+1])  # Down & right
+                        | ( link_up[r][c] & ~link_down[r][c] & link_right[r][c] & water[r-1][c] & water[r][c+1])  # Up & right
+                    ))
+                elif c == n_col - 1:  # Right wall
+                    E.add_constraint(water[r][c] >> (
+                          (~link_up[r][c] &  link_down[r][c] & link_left[r][c] & water[r+1][c] & water[r][c-1])  # Down & left
+                        | ( link_up[r][c] & ~link_down[r][c] & link_left[r][c] & water[r-1][c] & water[r][c-1])  # Up & left
+                    ))
                 else:
                     E.add_constraint(water[r][c] >> (
                           ( link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r-1][c] & water[r][c-1])  # Up & left
@@ -277,16 +288,24 @@ def get_solution(detect_loop=False, self_loops=[]):
             # Allows water to flow straight in either or both directions
             elif tile == '+':
                 E.add_constraint(regular[r][c])
-                if (r == 0 and c == 0) or (r == n_row - 1 and c == 0) or (r == 0 and c == n_col - 1) or (r == n_row - 1 and c == n_col - 1):  # Corners
+                if r == 0 and c == 0 or r == n_row - 1 and c == 0 or r == 0 and c == n_col - 1 or r == n_row - 1 and c == n_col - 1:  # Corners
                     E.add_constraint(~water[r][c])
-                elif (r == 0 or r == n_row - 1):
+                elif r == 0:  # Top wall
                     E.add_constraint(water[r][c] >> (
-                        (~link_up[r][c] & ~link_down[r][c] & link_left[r][c] & link_right[r][c] & water[r][c-1] & water[r][c+1])  # Left & right
+                        ~link_down[r][c] & link_left[r][c] & link_right[r][c] & water[r][c-1] & water[r][c+1]  # Left & right
                     ))
-                elif (c == 0 or c == n_col - 1):
+                elif r == n_row - 1:  # Bottom wall
                     E.add_constraint(water[r][c] >> (
-                        (link_up[r][c] & link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c] & water[r+1][c])  # Down & up
-                    ))                
+                        ~link_up[r][c] & link_left[r][c] & link_right[r][c] & water[r][c-1] & water[r][c+1]  # Left & right
+                    ))
+                elif c == 0:  # Left wall
+                    E.add_constraint(water[r][c] >> (
+                        link_up[r][c] & link_down[r][c] & ~link_right[r][c] & water[r-1][c] & water[r+1][c]  # Down & up
+                    ))
+                elif c == n_col - 1:  # Right wall
+                    E.add_constraint(water[r][c] >> (
+                        link_up[r][c] & link_down[r][c] & ~link_left[r][c] & water[r-1][c] & water[r+1][c]  # Down & up
+                    ))
                 else:
                     E.add_constraint(water[r][c] >> (
                           ( link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c] & water[r+1][c])  # Up & down
@@ -298,55 +317,53 @@ def get_solution(detect_loop=False, self_loops=[]):
             # To avoid duplicate solutions, links only in one direction
             elif tile == 'M':
                 E.add_constraint(moat[r][c])
-                if (r == 0 or r == n_row - 1 or c == 0 or c == n_col - 1):  # Edges
+                # Corners
+                if r == 0 and c == 0:  # Top left corner
+                    E.add_constraint(water[r][c] >> (
+                          ( link_down[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
+                        | (~link_down[r][c] &  link_right[r][c] & water[r][c+1])  # Right
+                    ))
+                elif r == 0 and c == n_col - 1:  # Top right corner
+                    E.add_constraint(water[r][c] >> (
+                          ( link_down[r][c] & ~link_left[r][c] & water[r+1][c])  # Down
+                        | (~link_down[r][c] &  link_left[r][c] & water[r][c-1])  # Left
+                    ))
+                elif r == n_row - 1 and c == 0:  # Bottom left corner
+                    E.add_constraint(water[r][c] >> (
+                          ( link_up[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
+                        | (~link_up[r][c] &  link_right[r][c] & water[r][c+1])  # Right
+                    ))
+                elif r == n_row - 1 and c == n_col - 1:  # Bottom right corner
+                    E.add_constraint(water[r][c] >> (
+                          ( link_up[r][c] & ~link_left[r][c] & water[r-1][c])  # Up
+                        | (~link_up[r][c] &  link_left[r][c] & water[r][c-1])  # Left
+                    ))
 
-                    # Corners
-                    if (r == 0 and c == 0):  # Top left corner
-                        E.add_constraint(water[r][c] >> (
-                              (~link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
-                            | (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r][c+1])  # Right
-                        ))
-                    elif (r == 0 and c == n_col - 1):  # Top right corner
-                        E.add_constraint(water[r][c] >> (
-                              (~link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
-                            | (~link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r][c-1])  # Left
-                        ))
-                    elif (r == n_row - 1 and c == 0):  # Bottom left corner
-                        E.add_constraint(water[r][c] >> (
-                              ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
-                            | (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r][c+1])  # Right
-                        ))
-                    elif (r == n_row - 1 and c == n_col - 1):  # Bottom right corner
-                        E.add_constraint(water[r][c] >> (
-                              ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
-                            | (~link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r][c-1])  # Left
-                        ))
-
-                    # Sides (w/o corners)
-                    elif (r == 0):  # Top wall
-                        E.add_constraint(water[r][c] >> (
-                              (~link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
-                            | (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r][c+1])  # Right
-                            | (~link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r][c-1])  # Left
-                        ))
-                    elif (r == n_row - 1):  # Bottom wall
-                        E.add_constraint(water[r][c] >> (
-                              ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
-                            | (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r][c+1])  # Right
-                            | (~link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r][c-1])  # Left
-                        ))
-                    elif (c == 0):  # Left wall
-                        E.add_constraint(water[r][c] >> (
-                              ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
-                            | (~link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
-                            | (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r][c+1])  # Right
-                        ))
-                    elif (c == n_col - 1):  # Right wall
-                        E.add_constraint(water[r][c] >> (
-                              ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
-                            | (~link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
-                            | (~link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r][c-1])  # Left
-                        ))
+                # Sides (w/o corners)
+                elif r == 0:  # Top wall
+                    E.add_constraint(water[r][c] >> (
+                          ( link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
+                        | (~link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r][c+1])  # Right
+                        | (~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r][c-1])  # Left
+                    ))
+                elif r == n_row - 1:  # Bottom wall
+                    E.add_constraint(water[r][c] >> (
+                          ( link_up[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
+                        | (~link_up[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r][c+1])  # Right
+                        | (~link_up[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r][c-1])  # Left
+                    ))
+                elif c == 0:  # Left wall
+                    E.add_constraint(water[r][c] >> (
+                          ( link_up[r][c] & ~link_down[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
+                        | (~link_up[r][c] &  link_down[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
+                        | (~link_up[r][c] & ~link_down[r][c] &  link_right[r][c] & water[r][c+1])  # Right
+                    ))
+                elif c == n_col - 1:  # Right wall
+                    E.add_constraint(water[r][c] >> (
+                          ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & water[r-1][c])  # Up
+                        | (~link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & water[r+1][c])  # Down
+                        | (~link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & water[r][c-1])  # Left
+                    ))
                     
                 else:
                     E.add_constraint(water[r][c] >> (
@@ -360,80 +377,182 @@ def get_solution(detect_loop=False, self_loops=[]):
             # Links only in one direction 
             elif tile == 'O':
                 if detect_loop:
-                    constraint.add_none_of(E, regular[r][c], moat[r][c], ocean[r][c], link_up[r][c], link_down[r][c], link_left[r][c], link_right[r][c])
-                    continue
+                    # Remove the ocean tile by treating it as a blank tile
+                    constraint.add_none_of(E, regular[r][c], moat[r][c], ocean[r][c])
+                    if r == 0 and c == 0:  # Top left corner
+                        constraint.add_none_of(E, link_down[r][c], link_right[r][c])
+                    elif r == 0 and c == n_col - 1:  # Top right corner
+                        constraint.add_none_of(E, link_down[r][c], link_left[r][c])
+                    elif r == n_row - 1 and c == 0:  # Bottom left corner
+                        constraint.add_none_of(E, link_up[r][c], link_right[r][c])
+                    elif r == n_row - 1 and c == n_row - 1:  # Bottom right corner
+                        constraint.add_none_of(E, link_up[r][c], link_left[r][c])
+                    
+                    elif r == 0:  # Top wall
+                        constraint.add_none_of(E, link_down[r][c], link_left[r][c], link_right[r][c])
+                    elif r == n_row - 1:  # Bottom wall
+                        constraint.add_none_of(E, link_up[r][c], link_left[r][c], link_right[r][c])
+                    elif c == 0:  # Left wall
+                        constraint.add_none_of(E, link_up[r][c], link_down[r][c], link_right[r][c])
+                    elif c == n_col - 1:  # Right wall
+                        constraint.add_none_of(E, link_up[r][c], link_down[r][c], link_left[r][c])
+                    else:
+                        constraint.add_none_of(E, link_up[r][c], link_down[r][c], link_left[r][c], link_right[r][c])
                 else:
                     E.add_constraint(ocean[r][c])
-                    if (r == 0 or r == n_row - 1 or c == 0 or c == n_col - 1):  # Edges
+                    # Corners
+                    if r == 0 and c == 0:  # Top left corner
+                        E.add_constraint(
+                              ( link_down[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
+                            | (~link_down[r][c] &  link_right[r][c] & water[r][c+1])  # Right
+                        )
+                    elif r == 0 and c == n_col - 1:  # Top right corner
+                        E.add_constraint(
+                              ( link_down[r][c] & ~link_left[r][c] & water[r+1][c])  # Down
+                            | (~link_down[r][c] &  link_left[r][c] & water[r][c-1])  # Left
+                        )
+                    elif r == n_row - 1 and c == 0:  # Bottom left corner
+                        E.add_constraint(
+                              ( link_up[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
+                            | (~link_up[r][c] &  link_right[r][c] & water[r][c+1])  # Right
+                        )
+                    elif r == n_row - 1 and c == n_col - 1:  # Bottom right corner
+                        E.add_constraint(
+                              ( link_up[r][c] & ~link_left[r][c] & water[r-1][c])  # Up
+                            | (~link_up[r][c] &  link_left[r][c] & water[r][c-1])  # Left
+                        )
 
-                        # Corners
-                        if (r == 0 and c == 0):  # Top left corner
-                            E.add_constraint(
-                                (~link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
-                                | (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r][c+1])  # Right
-                            )
-                        elif (r == 0 and c == n_col - 1):  # Top right corner
-                            E.add_constraint(
-                                (~link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
-                                | (~link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r][c-1])  # Left
-                            )
-                        elif (r == n_row - 1 and c == 0):  # Bottom left corner
-                            E.add_constraint(
-                                ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
-                                | (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r][c+1])  # Right
-                            )
-                        elif (r == n_row - 1 and c == n_col - 1):  # Bottom right corner
-                            E.add_constraint(
-                                ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
-                                | (~link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r][c-1])  # Left
-                            )
-
-                        # Sides (w/o corners)
-                        elif (r == 0):  # Top wall
-                            E.add_constraint(
-                                (~link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
-                                | (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r][c+1])  # Right
-                                | (~link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r][c-1])  # Left
-                            )
-                        elif (r == n_row - 1):  # Bottom wall
-                            E.add_constraint(
-                                ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
-                                | (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r][c+1])  # Right
-                                | (~link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r][c-1])  # Left
-                            )
-                        elif (c == 0):  # Left wall
-                            E.add_constraint(
-                                ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
-                                | (~link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
-                                | (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r][c+1])  # Right
-                            )
-                        elif (c == n_col - 1):  # Right wall
-                            E.add_constraint(
-                                ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
-                                | (~link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
-                                | (~link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r][c-1])  # Left
-                            )
+                    # Sides (w/o corners)
+                    elif r == 0:  # Top wall
+                        E.add_constraint(
+                              ( link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
+                            | (~link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r][c+1])  # Right
+                            | (~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r][c-1])  # Left
+                        )
+                    elif r == n_row - 1:  # Bottom wall
+                        E.add_constraint(
+                              ( link_up[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
+                            | (~link_up[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r][c+1])  # Right
+                            | (~link_up[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r][c-1])  # Left
+                        )
+                    elif c == 0:  # Left wall
+                        E.add_constraint(
+                              ( link_up[r][c] & ~link_down[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
+                            | (~link_up[r][c] &  link_down[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
+                            | (~link_up[r][c] & ~link_down[r][c] &  link_right[r][c] & water[r][c+1])  # Right
+                        )
+                    elif c == n_col - 1:  # Right wall
+                        E.add_constraint(
+                              ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & water[r-1][c])  # Up
+                            | (~link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & water[r+1][c])  # Down
+                            | (~link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & water[r][c-1])  # Left
+                        )
                     else:
                         E.add_constraint(
-                            ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
+                              ( link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r-1][c])  # Up
                             | (~link_up[r][c] &  link_down[r][c] & ~link_left[r][c] & ~link_right[r][c] & water[r+1][c])  # Down
                             | (~link_up[r][c] & ~link_down[r][c] &  link_left[r][c] & ~link_right[r][c] & water[r][c-1])  # Left
                             | (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] &  link_right[r][c] & water[r][c+1])  # Right
                         )
             # Blank tile
             else:
-                constraint.add_none_of(E, regular[r][c], moat[r][c], ocean[r][c], link_up[r][c], link_down[r][c], link_left[r][c], link_right[r][c])
+                constraint.add_none_of(E, regular[r][c], moat[r][c], ocean[r][c])
+                # Corners
+                if r == 0 and c == 0:  # Top left corner
+                    constraint.add_none_of(E, link_down[r][c], link_right[r][c])
+                elif r == 0 and c == n_col - 1:  # Top right corner
+                    constraint.add_none_of(E, link_down[r][c], link_left[r][c])
+                elif r == n_row - 1 and c == 0:  # Bottom left corner
+                    constraint.add_none_of(E, link_up[r][c], link_right[r][c])
+                elif r == n_row - 1 and c == n_row - 1: # Bottom right corner
+                    constraint.add_none_of(E, link_up[r][c], link_left[r][c])
+                
+                # Sides (w/o corners)
+                elif r == 0:  # Top wall
+                    constraint.add_none_of(E, link_down[r][c], link_left[r][c], link_right[r][c])
+                elif r == n_row - 1:  # Bottom wall
+                    constraint.add_none_of(E, link_up[r][c], link_left[r][c], link_right[r][c])
+                elif c == 0:  # Left wall
+                    constraint.add_none_of(E, link_up[r][c], link_down[r][c], link_right[r][c])
+                elif c == n_col - 1:  # Right wall
+                    constraint.add_none_of(E, link_up[r][c], link_down[r][c], link_left[r][c])
+                else:
+                    constraint.add_none_of(E, link_up[r][c], link_down[r][c], link_left[r][c], link_right[r][c])
 
             # A tile can be at most one of straight, curved, bridge, moat, ocean
             # If none, it is a blank tile
             constraint.add_at_most_one(E, regular[r][c], moat[r][c], ocean[r][c])
 
             # Restrict linking to remove duplicate solutions
-            E.add_constraint(~water[r][c] >> (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c]))
+            # Corners
+            if r == 0 and c == 0:  # Top left corner
+                E.add_constraint(~water[r][c] >> (~link_down[r][c] & ~link_right[r][c]))
+            elif r == 0 and c == n_col - 1:  # Top right corner
+                E.add_constraint(~water[r][c] >> (~link_down[r][c] & ~link_left[r][c]))
+            elif r == n_row - 1 and c == 0:  # Bottom left corner
+                E.add_constraint(~water[r][c] >> (~link_up[r][c] & ~link_right[r][c]))
+            elif r == n_row - 1 and c == n_col - 1:  # Bottom right corner
+                E.add_constraint(~water[r][c] >> (~link_up[r][c] & ~link_left[r][c]))
+
+            # Sides (w/o corners)
+            elif r == 0:  # Top wall
+                E.add_constraint(~water[r][c] >> (~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c]))
+            elif r == n_row - 1:  # Bottom wall
+                E.add_constraint(~water[r][c] >> (~link_up[r][c] & ~link_left[r][c] & ~link_right[r][c]))
+            elif c == 0:  # Left wall
+                E.add_constraint(~water[r][c] >> (~link_up[r][c] & ~link_down[r][c] & ~link_right[r][c]))
+            elif c == n_col - 1:  # Right wall
+                E.add_constraint(~water[r][c] >> (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c]))
+            else:
+                E.add_constraint(~water[r][c] >> (~link_up[r][c] & ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c]))
 
     # Water
     # If there is water on a tile, it must either be an ocean tile 
     # or is connected to another tile containing water
+    
+    # Corners
+    E.add_constraint(water[0][0] >> (ocean[0][0]  # Top left corner
+            | water[1][0] & link_down[0][0]
+            | water[0][1] & link_right[0][0]
+    ))
+    E.add_constraint(water[0][n_col-1] >> (ocean[0][n_col-1]  # Top right corner
+            | water[1][n_col-1] & link_down[0][n_col-1]
+            | water[0][n_col-2] & link_left[0][n_col-1]
+    ))
+    E.add_constraint(water[n_row-1][0] >> (ocean[n_row-1][0]  # Bottom left corner
+            | water[n_row-2][0] & link_up[n_row-1][0]
+            | water[n_row-1][1] & link_right[n_row-1][0]
+    ))
+    E.add_constraint(water[n_row-1][n_col-1] >> (ocean[n_row-1][n_col-1]  # Bottom right corner
+            | water[n_row-2][n_col-1] & link_up[n_row-1][n_col-1]
+            | water[n_row-1][n_col-2] & link_left[n_row-1][n_col-1]
+    ))
+
+    # Sides (w/o corners)
+    for c in range(1, n_col - 1):
+        E.add_constraint(water[0][c] >> (ocean[0][c]  # Top wall
+                | water[1][c]   & link_down[0][c]
+                | water[0][c-1] & link_left[0][c]
+                | water[0][c+1] & link_right[0][c]
+        ))
+        E.add_constraint(water[n_row-1][c] >> (ocean[n_row-1][c]  # Bottom wall
+                | water[n_row-2][c]   & link_up[n_row-1][c]
+                | water[n_row-1][c-1] & link_left[n_row-1][c]
+                | water[n_row-1][c+1] & link_right[n_row-1][c]
+        ))
+    for r in range(1, n_row - 1):
+        E.add_constraint(water[r][0] >> (ocean[r][0]  # Left wall
+                | water[r-1][0] & link_up[r][0]
+                | water[r+1][0] & link_down[r][0]
+                | water[r][1]   & link_right[r][0]
+        ))
+        E.add_constraint(water[r][n_col-1] >> (ocean[r][n_col-1]  # Right wall
+                | water[r-1][n_col-1] & link_up[r][n_col-1]
+                | water[r+1][n_col-1] & link_down[r][n_col-1]
+                | water[r][n_col-2]   & link_left[r][n_col-1]
+        ))
+    
+    # Elsewhere
     for r in range(1, n_row - 1):
         for c in range(1, n_col - 1):
             E.add_constraint(water[r][c] >> (ocean[r][c]
@@ -442,70 +561,6 @@ def get_solution(detect_loop=False, self_loops=[]):
                     | water[r][c+1] & link_right[r][c]
                     | water[r+1][c] & link_down[r][c]
             ))
-    for c in range(1, n_col - 1):
-        E.add_constraint(water[0][c] >> (ocean[0][c]  # Top edge
-                | water[1][c] & link_down[0][c]
-                | water[0][c-1] & link_left[0][c]
-                | water[0][c+1] & link_right[0][c]
-        ))
-        E.add_constraint(water[n_row-1][c] >> (ocean[n_row-1][c]  # Bottom edge
-                | water[n_row-2][c] & link_up[n_row-1][c]
-                | water[n_row-1][c-1] & link_left[n_row-1][c]
-                | water[n_row-1][c+1] & link_right[n_row-1][c]
-        ))
-    for r in range(1, n_row - 1):
-        E.add_constraint(water[r][0] >> (ocean[r][0]  # Left edge
-                | water[r-1][0] & link_up[r][0]
-                | water[r+1][0] & link_down[r][0]
-                | water[r][1] & link_right[r][0]
-        ))
-        E.add_constraint(water[r][n_col-1] >> (ocean[r][n_col-1]  # Right edge
-                | water[r-1][n_col-1] & link_up[r][n_col-1]
-                | water[r+1][n_col-1] & link_down[r][n_col-1]
-                | water[r][n_col-2] & link_left[r][n_col-1]
-        ))
-    E.add_constraint(water[0][0] >> (ocean[0][0]  # Top left corner
-            | water[1][0] & link_down[0][0]
-            | water[0][1] & link_right[0][0]
-    ))
-    E.add_constraint(water[0][n_col-1] >>  # Top right corner
-            (ocean[0][n_col-1] | water[1][n_col-1] & link_down[0][n_col-1]
-            | water[0][n_col-2] & link_left[0][n_col-1]
-    ))
-    E.add_constraint(water[n_row-1][0] >>  # Bottom left corner
-            (ocean[n_row-1][0] | water[n_row-2][0] & link_up[n_row-1][0]
-            | water[n_row-1][1] & link_right[n_row-1][0]
-    ))
-    E.add_constraint(water[n_row-1][n_col-1] >>  # Bottom right corner
-            (ocean[n_row-1][n_col-1] | water[n_row-2][n_col-1] & link_up[n_row-1][n_col-1]
-            | water[n_row-1][n_col-2] & link_left[n_row-1][n_col-1]
-    ))
-
-    # Linking
-    # If a tile links up, the tile above must link down
-    for r in range(1, n_row):
-        for c in range(n_col):
-            E.add_constraint(link_up[r][c] >> link_down[r-1][c])
-    # If a tile links down, the tile below must link up 
-    for r in range(n_row - 1):
-        for c in range(n_col):
-            E.add_constraint(link_down[r][c] >> link_up[r+1][c])
-    # If a tile links left, the tile on the left must link right
-    for r in range(n_row):
-        for c in range(1, n_col):
-            E.add_constraint(link_left[r][c] >> link_right[r][c-1])
-    # If a tile links right, the tile on the right must link left
-    for r in range(n_row):
-        for c in range(n_col - 1):
-            E.add_constraint(link_right[r][c] >> link_left[r][c+1])
-    
-    # Tiles cannot link out of bounds
-    for r in range(n_row):
-        E.add_constraint(~link_left[r][0])
-        E.add_constraint(~link_right[r][n_col - 1])
-    for c in range(n_col):
-        E.add_constraint(~link_up[0][c])
-        E.add_constraint(~link_down[n_row - 1][c])
 
     
     if not detect_loop:
