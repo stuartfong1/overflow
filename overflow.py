@@ -39,12 +39,6 @@ F = Encoding()
 
 
 @proposition(E)
-class Win:
-    def __repr__(self):
-        return "Win"
-
-
-@proposition(E)
 class Tile:
     """
     Proposition representing a type of tile.
@@ -189,8 +183,6 @@ link_up    = [None] + link_vertical
 link_down  = link_vertical + [None]
 link_left  = [[None] + r for r in link_horizontal]
 link_right = [r + [None] for r in link_horizontal]
-
-win = Win()
 
 waterf = [[WaterF(r, c) for c in range(n_col)] for r in range(n_row)]
 length = [None] + [Length(i + 1) for i in range(n_row * n_col)]
@@ -578,8 +570,7 @@ def get_solution(detect_loop=False, self_loops=[]):
         for r in range(n_row):
             for c in range(n_col):
                 temp = temp | moat[r][c] & water[r][c]
-        E.add_constraint(win >> temp)
-        E.add_constraint(win)  # Find a solution
+        E.add_constraint(temp)  # Find a solution
 
     return E
 
