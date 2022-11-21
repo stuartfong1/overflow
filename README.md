@@ -30,12 +30,10 @@ python3 overflow.py
 ```
 
 ### Arguments
-`--no-logic`: Use the Python implementation of calculating the path length.
-
 `--verbose`: Print detailed processing information onto the screen.
 
 ### Example output
-![Output of program on example level](https://i.imgur.com/dt3X3DC.png)
+![Output of program on example level](https://i.imgur.com/Xvmr8x6.png)
 
 
 ## 🏰 Structure

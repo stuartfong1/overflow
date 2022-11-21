@@ -1,24 +1,19 @@
 from bauhaus import Encoding, proposition, constraint
 from bauhaus.utils import count_solutions
-from nnf import dsharp
+from nnf import dsharp, config
 import argparse
-import sys
 
 import viz
 
-# Change maximum recursion depth for larger levels
-sys.setrecursionlimit(10**6)
+
+# Use faster SAT solver
+config.sat_backend = "kissat"
+
 
 # Parse arguments
 parser = argparse.ArgumentParser(
         prog = 'Overflow',
         description = 'Solver for the Overflow game.'
-)
-
-parser.add_argument('-n', '--no-logic', 
-        action='store_true', 
-        default=False,
-        help='Use the Python implementation of calculating the path length (default=False)'
 )
 
 parser.add_argument('-v', '--verbose',
@@ -28,8 +23,6 @@ parser.add_argument('-v', '--verbose',
 )
 
 args = parser.parse_args()
-
-no_logic = vars(args)['no_logic']  # Use Python to calculate path length
 verbose = vars(args)['verbose']  # Set verbosity
 
 
@@ -120,11 +113,13 @@ class Length:
     self.number: The number that the proposition represents
     """
 
-    def __init__(self, number):
+    def __init__(self, row, col, number):
+        self.row = row
+        self.col = col
         self.number = number
 
     def __repr__(self) -> str:
-        return f"len {self.number}"
+        return f"len {self.number}({self.row}, {self.col})"
 
 
 # Create level layout
@@ -160,7 +155,7 @@ level_layout = [  # From project proposal
 # ]
 
 # level_layout = [  # Two paths with the same length
-#     "OL",
+#     "O ",
 #     "LM"
 # ]
 
@@ -184,8 +179,9 @@ link_down  = link_vertical + [None]
 link_left  = [[None] + r for r in link_horizontal]
 link_right = [r + [None] for r in link_horizontal]
 
+n_length = (n_row * n_col).bit_length()
 waterf = [[WaterF(r, c) for c in range(n_col)] for r in range(n_row)]
-length = [None] + [Length(i + 1) for i in range(n_row * n_col)]
+length = [[[Length(r, c, 2 ** i) for i in range(n_length)] for c in range(n_col)] for r in range(n_row)]
 
 # Constraints
 
@@ -589,27 +585,40 @@ def get_length(solution):
             else:
                 F.add_constraint(~waterf[r][c])
 
-    # Iterate over every possible subset of the tiles.
-    # If a bit is on, there is water in tile j. Else, it does not contain water.
-    for i in range(1, 2 ** (n_row * n_col)):
-        # Give temp an initial value based on the top left tile
-        if i & 1 == 1:
-            temp = waterf[0][0]
-            n_ones = 1
-        else:
-            temp = ~waterf[0][0]
-            n_ones = 0
+    # Set length for top left tile
+    # The length is 1 if there is water, 0 otherwise
+    F.add_constraint((waterf[0][0] & length[0][0][0]) 
+                  | (~waterf[0][0] & ~length[0][0][0]))
+    for i in range(1, n_length):
+        F.add_constraint(~length[0][0][i])
 
-        for j in range(1, n_row * n_col):
-            if i & (1 << j) > 0:
-                # Tile must contain water
-                temp = temp & waterf[j // n_col][j % n_col]
-                n_ones += 1
-            else:
-                # Tile must not contain water
-                temp = temp & ~waterf[j // n_col][j % n_col]
-        # If a solution has this layout, the path is length equal to the number of 1 bits in i
-        F.add_constraint(temp >> length[n_ones])
+    # Count number of water tiles in binary
+    # Note that the length propositions are ordered 1, 2, 4, 8, ...
+    for r in range(n_row):
+        for c in range(n_col):
+            # Top left case already handled
+            if r == 0 and c == 0:
+                continue
+
+            prev_row = r if c > 0 else r - 1
+            prev_col = c - 1 if c > 0 else n_col - 1
+            # If the previous bit positions are all 1's
+            temp = length[prev_row][prev_col][0]
+
+            # If a tile contains water, we "add one" to the previous count
+            F.add_constraint(waterf[r][c] >> (~length[prev_row][prev_col][0] &  length[r][c][0] 
+                                             | length[prev_row][prev_col][0] & ~length[r][c][0]))
+            for i in range(1, n_length):
+                F.add_constraint(waterf[r][c] >> ((~temp & ~length[prev_row][prev_col][i]) >> ~length[r][c][i]))
+                F.add_constraint(waterf[r][c] >> ((~temp &  length[prev_row][prev_col][i]) >>  length[r][c][i]))
+                F.add_constraint(waterf[r][c] >> (( temp & ~length[prev_row][prev_col][i]) >>  length[r][c][i]))
+                F.add_constraint(waterf[r][c] >> (( temp &  length[prev_row][prev_col][i]) >> ~length[r][c][i]))
+                temp = temp & length[prev_row][prev_col][i]
+
+            # Otherwise, keep the count the same
+            for i in range(n_length):
+                F.add_constraint(~waterf[r][c] >> (~length[prev_row][prev_col][i] & ~length[r][c][i] 
+                                                  | length[prev_row][prev_col][i] &  length[r][c][i]))
 
     return F
 
@@ -646,53 +655,29 @@ if __name__ == "__main__":
         all_solutions = dsharp.compile(T.to_CNF(), smooth=True).models()
         all_solutions = [i for i in all_solutions]
 
-        # Python implementation of finding longest solution
-        if no_logic:
-            # Get the lengths of each path
-            lengths = []
-            for i, solution in enumerate(all_solutions):
-                if verbose:
-                    print(f"Getting length of solution {i + 1}...")
-                len_path = 0
-                for r in range(n_row):
-                    for c in range(n_col):
-                        if solution[water[r][c]]:
-                            len_path += 1
-                lengths.append(len_path)
-
-            # Get the maximum length
-            longest_length = max(lengths)
-
-            # Return the path with the longest length
-            for i, l in enumerate(lengths):
-                if l == longest_length:
-                    longest_solution_dict = all_solutions[i]
-                    break
-            
-        # Logic implementation of finding longest solution (slow)
-        else:
-            # Get the lengths of each path
-            lengths = []
-            for i, solution in enumerate(all_solutions):
-                if verbose:
-                    print(f"Getting length of solution {i + 1}...")
-                U = get_length(solution)
-                U = U.compile()
-                lengths.append(U.solve())
-            
-            # Get the maximum length
-            longest_length = 0
-            for l in lengths:
-                for i in range(n_row * n_col, 0, -1):
-                    if l[length[i]] and i > longest_length:
-                        longest_length = i
-                        break
+        # Get the lengths of each path
+        lengths = []
+        for i, solution in enumerate(all_solutions):
+            if verbose:
+                print(f"Getting length of solution {i + 1}...")
+            U = get_length(solution)
+            U = U.compile()
+            lengths.append(U.solve())
+        
+        # Get the maximum length
+        longest_length = 0
+        longest_length_index = 0
+        for i, l in enumerate(lengths):
+            total_length = 0
+            for j in range(n_length):
+                if l[length[n_row - 1][n_col - 1][j]]:
+                    total_length += length[n_row - 1][n_col - 1][j].number
+            if total_length > longest_length:
+                longest_length = total_length
+                longest_length_index = i
             
             # Return the path with the longest length
-            for i, l in enumerate(lengths):
-                if l[length[longest_length]]:
-                    longest_solution_dict = all_solutions[i]
-                    break
+            longest_solution_dict = all_solutions[longest_length_index]
 
         print("Longest solution has length", longest_length)
 
