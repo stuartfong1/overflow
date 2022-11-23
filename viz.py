@@ -97,9 +97,9 @@ def viz_level(level):
                 elif path.link == [False, True, False, False]:
                     char = '∩'
                 elif path.link == [False, False, True, False]:
-                    char = '⊂'
-                elif path.link == [False, False, False, True]:
                     char = '⊃'
+                elif path.link == [False, False, False, True]:
+                    char = '⊂'
                 else:
                     char = random.choice("U∩⊂⊃")
 
