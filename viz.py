@@ -34,15 +34,23 @@ def convert_solution(sol, level_layout):
         prop = getattr(k, 'prop', None)
         if v and prop == 'tile':
             level[k.row][k.col].type = level_layout[k.row][k.col]
-        elif prop == 'water':
-            level[k.row][k.col].water = v
+        # elif prop == 'water':
+        #     level[k.row][k.col].water = v
         elif prop == 'link':
             if k.direction == 'V':
                 level[k.row + 1][k.col].link[0] = v
                 level[k.row][k.col].link[1] = v
+
+                if v:
+                    level[k.row + 1][k.col].water = True
+                    level[k.row][k.col].water = True
             elif k.direction == 'H':
                 level[k.row][k.col + 1].link[2] = v
                 level[k.row][k.col].link[3] = v
+
+                if v:
+                    level[k.row][k.col + 1].water = True
+                    level[k.row][k.col].water = True
 
     return level
 
