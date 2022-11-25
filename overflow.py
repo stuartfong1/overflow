@@ -40,7 +40,7 @@ class Tile:
     Proposition representing a type of tile.
     self.row - The row that the tile is in.
     self.col - The column that the tile is in.
-    self.tile_type - The type of tile. Can be one of R, M, O
+    self.tile_type - The type of tile. Can be one of S, C, B, M, O
     self.prop - Identifies the tile as a regular tile.
     """
 
@@ -169,7 +169,9 @@ n_row = len(level_layout)
 n_col = len(level_layout[0])
 
 # Propositions
-regular = [[Tile(r, c, 'R') for c in range(n_col)] for r in range(n_row)]
+straight = [[Tile(r, c, 'S') for c in range(n_col)] for r in range(n_row)]
+curved = [[Tile(r, c, 'C') for c in range(n_col)] for r in range(n_row)]
+bridge = [[Tile(r, c, 'B') for c in range(n_col)] for r in range(n_row)]
 moat    = [[Tile(r, c, 'M') for c in range(n_col)] for r in range(n_row)]
 ocean   = [[Tile(r, c, 'O') for c in range(n_col)] for r in range(n_row)]
 
@@ -204,7 +206,7 @@ def get_solution(detect_loop=False, remove=None, self_loops=[]):
             # A straight path that goes up and down or left and right
             if tile == '-':
                 blank = False
-                E.add_constraint(regular[r][c])
+                E.add_constraint(straight[r][c])
                 # Corners
                 if r == 0 and c == 0:
                     constraint.add_none_of(E, link_down[r][c], link_right[r][c])
@@ -245,7 +247,7 @@ def get_solution(detect_loop=False, remove=None, self_loops=[]):
             # Bends the path of the water by 90 degrees in any direction
             elif tile == 'L':
                 blank = False
-                E.add_constraint(regular[r][c])
+                E.add_constraint(curved[r][c])
                 # Corners
                 if r == 0 and c == 0:  # Top left corner
                     E.add_constraint(
@@ -305,7 +307,7 @@ def get_solution(detect_loop=False, remove=None, self_loops=[]):
             # Allows water to flow straight in either or both directions
             elif tile == '+':
                 blank = False
-                E.add_constraint(regular[r][c])
+                E.add_constraint(bridge[r][c])
                 # Corners
                 if r == 0 and c == 0:
                     constraint.add_none_of(E, link_down[r][c], link_right[r][c])
@@ -424,7 +426,7 @@ def get_solution(detect_loop=False, remove=None, self_loops=[]):
 
             # Blank tile
             if blank:
-                constraint.add_none_of(E, regular[r][c], moat[r][c], ocean[r][c])
+                constraint.add_none_of(E, straight[r][c], curved[r][c], bridge[r][c], moat[r][c], ocean[r][c])
                 # Corners
                 if r == 0 and c == 0:  # Top left corner
                     constraint.add_none_of(E, link_down[r][c], link_right[r][c])
@@ -449,7 +451,7 @@ def get_solution(detect_loop=False, remove=None, self_loops=[]):
 
             # A tile can be at most one of straight, curved, bridge, moat, ocean
             # If none, it is a blank tile
-            constraint.add_at_most_one(E, regular[r][c], moat[r][c], ocean[r][c])
+            constraint.add_at_most_one(E, straight[r][c], curved[r][c], bridge[r][c], moat[r][c], ocean[r][c])
 
     
     if not detect_loop:
