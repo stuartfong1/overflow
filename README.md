@@ -47,4 +47,5 @@ python3 overflow.py
 ### Custom code
 
 * `overflow.py`: Contains the code to build and run the model.
+* `level.py`: Where level layouts are inserted into the solver.
 * `viz.py`: Used to visualize solutions.
