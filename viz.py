@@ -34,8 +34,6 @@ def convert_solution(sol, level_layout):
         prop = getattr(k, 'prop', None)
         if v and prop == 'tile':
             level[k.row][k.col].type = level_layout[k.row][k.col]
-        # elif prop == 'water':
-        #     level[k.row][k.col].water = v
         elif prop == 'link':
             if k.direction == 'V':
                 level[k.row + 1][k.col].link[0] = v
@@ -95,11 +93,11 @@ def viz_level(level):
                 char = '╋'
 
             # Moat tile
-            elif path.type == 'M':
+            elif path.type == '#':
                 char = '#'
 
             # Ocean tile
-            elif path.type == 'O':
+            elif path.type == 'U':
                 if path.link == [True, False, False, False]:
                     char = 'U'
                 elif path.link == [False, True, False, False]:

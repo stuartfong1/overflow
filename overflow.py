@@ -4,6 +4,7 @@ from nnf import dsharp, config
 import argparse
 import sys
 
+from level import level_layout
 import viz
 
 # Increase maximum recursion depth for larger levels
@@ -108,63 +109,7 @@ class Length:
         return f"len {self.number}({self.row}, {self.col})"
 
 
-# Create level layout
-
-# - = straight
-# + = bridge
-# L = curved
-# M = moat
-# O = ocean
-
-# level_layout = [  # Self-loops
-#     "L-LMMML-L",
-#     "-LLL--LL-",
-#     "--L---LL-",
-#     "L+LLLL+-L",
-#     "LLLLLL---",
-#     "      O  "
-# ]
-
-# level_layout = [  # From project proposal
-#     " L-MMML-L",
-#     "-LLLLL-LL",
-#     "LL-L++++L",
-#     "L+L--L+L-",
-#     "LL-LLLL-L",
-#     "     O   "
-# ]
-
-# level_layout = [  # Two paths with different lengths
-#     "-LL",
-#     "O+M",
-#     "LL-"
-# ]
-
-# level_layout = [  # Two paths with the same length
-#     "OL",
-#     "LM"
-# ]
-
-# level_layout = [
-#     " MM+O+MM",
-#     " -     -",
-#     " -     -",
-#     " O-O--OL",
-#     "        "
-# ]
-
-level_layout = [  # Multiple oceans
-    "L---LO-L",
-    "-L-OL-O-",
-    "M-O---L-",
-    "LLL-OL+L",
-    "-L+-L-MM",
-    "--LLOLM-",
-    "L+LL---L",
-    "MLL----M"
-]
-
-
+# Get dimensions of level
 n_row = len(level_layout)
 n_col = len(level_layout[0])
 
@@ -185,14 +130,26 @@ link_down  = link_vertical + [None]
 link_left  = [[None] + r for r in link_horizontal]
 link_right = [r + [None] for r in link_horizontal]
 
+# Maximum number of bits needed to store the length of a solution path
+# in a level with dimensions n_row by n_col
 n_length = (n_row * n_col).bit_length()
+
+# Create water and length propositions used when finding the length of a solution path
 water = [[Water(r, c) for c in range(n_col)] for r in range(n_row)]
 length = [[[Length(r, c, 2 ** i) for i in range(n_length)] for c in range(n_col)] for r in range(n_row)]
 
 # Constraints
 
 def get_solution(detect_loop=False, remove=None, self_loops=[]):
-    # Find a solution path from an ocean tile to a moat tile
+    """
+    Find a solution path from an ocean tile to a moat tile
+    detect_loop - detect self-loops that may be present in the solver's output
+    remove - 'moat', 'ocean', or None. Specify which tile to treat as blank
+    self_loops - List of lists specifying which tiles can form self-loops
+
+    Returns an encoding with the constraints needed to find a solution
+    to the level.
+    """
 
     # Clear constraints so that we can run this function more than once
     E._custom_constraints = set()
@@ -208,13 +165,13 @@ def get_solution(detect_loop=False, remove=None, self_loops=[]):
                 blank = False
                 E.add_constraint(straight[r][c])
                 # Corners
-                if r == 0 and c == 0:
+                if r == 0 and c == 0:  # Top left corner
                     constraint.add_none_of(E, link_down[r][c], link_right[r][c])
-                elif r == n_row - 1 and c == 0:
-                    constraint.add_none_of(E, link_up[r][c], link_right[r][c])
-                elif r == 0 and c == n_col - 1:
+                elif r == 0 and c == n_col - 1:  # Top right corner
                     constraint.add_none_of(E, link_down[r][c], link_left[r][c])
-                elif r == n_row - 1 and c == n_col - 1:
+                elif r == n_row - 1 and c == 0:  # Bottom left corner
+                    constraint.add_none_of(E, link_up[r][c], link_right[r][c])
+                elif r == n_row - 1 and c == n_col - 1:  # Bottom right corner
                     constraint.add_none_of(E, link_up[r][c], link_left[r][c])
 
                 elif c == 0:   # Left wall
@@ -309,13 +266,13 @@ def get_solution(detect_loop=False, remove=None, self_loops=[]):
                 blank = False
                 E.add_constraint(bridge[r][c])
                 # Corners
-                if r == 0 and c == 0:
+                if r == 0 and c == 0:  # Top left corner
                     constraint.add_none_of(E, link_down[r][c], link_right[r][c])
-                elif r == n_row - 1 and c == 0:
-                    constraint.add_none_of(E, link_up[r][c], link_right[r][c])
-                elif r == 0 and c == n_col - 1:
+                elif r == 0 and c == n_col - 1:  # Top right corner
                     constraint.add_none_of(E, link_down[r][c], link_left[r][c])
-                elif r == n_row - 1 and c == n_col - 1:
+                elif r == n_row - 1 and c == 0:  # Bottom left corner
+                    constraint.add_none_of(E, link_up[r][c], link_right[r][c])
+                elif r == n_row - 1 and c == n_col - 1:  # Bottom right corner
                     constraint.add_none_of(E, link_up[r][c], link_left[r][c])
 
                 elif r == 0:  # Top wall
@@ -348,7 +305,7 @@ def get_solution(detect_loop=False, remove=None, self_loops=[]):
             # Moat tile
             # The goal of the level
             # To avoid duplicate solutions, links only in one direction
-            elif tile == 'M' and not remove == 'moat':
+            elif tile == '#' and not remove == 'moat':
                 blank = False
                 E.add_constraint(moat[r][c])
                 # Corners
@@ -376,7 +333,7 @@ def get_solution(detect_loop=False, remove=None, self_loops=[]):
             # Ocean tile
             # The start of the water
             # Links only in one direction 
-            elif tile == 'O' and not remove == 'ocean':
+            elif tile == 'U' and not remove == 'ocean':
                 blank = False
                 E.add_constraint(ocean[r][c])
                 if not remove == 'moat':
@@ -494,7 +451,16 @@ def get_solution(detect_loop=False, remove=None, self_loops=[]):
 
 
 def get_length(solution):
-    # Given an output from the SAT solver, returns the length of the path.
+    """
+    Given an output from the SAT solver containing a solution to the level, 
+    finds the length of the solution path.
+    solution - The output from the SAT solver
+
+    Returns an encoding with the constraints to get the length.
+    Once a solution has been found, the length of the solution path
+    is the length propositions at the bottom right tile stored as
+    (2^0)(N(0)) + (2^1)(N(2)) + (2^2)(N(2)) + ...
+    """
 
     # Clear constraints so that we can run this function more than once
     F._custom_constraints = set()
@@ -528,17 +494,17 @@ def get_length(solution):
             prev_row = r if c > 0 else r - 1
             prev_col = c - 1 if c > 0 else n_col - 1
             # If the previous bit positions are all 1's
-            temp = length[prev_row][prev_col][0]
+            propagate_carry = length[prev_row][prev_col][0]
 
             # If a tile contains water, we "add one" to the previous count
             F.add_constraint(water[r][c] >> (~length[prev_row][prev_col][0] &  length[r][c][0] 
                                              | length[prev_row][prev_col][0] & ~length[r][c][0]))
             for i in range(1, n_length):
-                F.add_constraint(water[r][c] >> ((~temp & ~length[prev_row][prev_col][i]) >> ~length[r][c][i]))
-                F.add_constraint(water[r][c] >> ((~temp &  length[prev_row][prev_col][i]) >>  length[r][c][i]))
-                F.add_constraint(water[r][c] >> (( temp & ~length[prev_row][prev_col][i]) >>  length[r][c][i]))
-                F.add_constraint(water[r][c] >> (( temp &  length[prev_row][prev_col][i]) >> ~length[r][c][i]))
-                temp = temp & length[prev_row][prev_col][i]
+                F.add_constraint(water[r][c] >> ((~propagate_carry & ~length[prev_row][prev_col][i]) >> ~length[r][c][i]))
+                F.add_constraint(water[r][c] >> ((~propagate_carry &  length[prev_row][prev_col][i]) >>  length[r][c][i]))
+                F.add_constraint(water[r][c] >> (( propagate_carry & ~length[prev_row][prev_col][i]) >>  length[r][c][i]))
+                F.add_constraint(water[r][c] >> (( propagate_carry &  length[prev_row][prev_col][i]) >> ~length[r][c][i]))
+                propagate_carry = propagate_carry & length[prev_row][prev_col][i]
 
             # Otherwise, keep the count the same
             for i in range(n_length):
@@ -618,5 +584,6 @@ if __name__ == "__main__":
 
         print("Longest solution has length", longest_length)
 
+        # Visualize longest solution path
         longest_solution = viz.convert_solution(longest_solution_dict, level_layout)
         viz.viz_level(longest_solution)
