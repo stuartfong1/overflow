@@ -55,3 +55,17 @@ level_layout = [  # Level seen in project proposal
 #     "L+LL---L",
 #     "#LL----#"
 # ]
+
+
+############################################################
+
+# If the level layout has a non-rectangular shape,
+# pad shorter rows with blank tiles
+
+# Get maximum row length
+max_col = max([len(i) for i in level_layout])
+
+# Add padding
+for i, e in enumerate(level_layout):
+    if len(e) < max_col:
+        level_layout += ' ' * (max_col - len(i))
