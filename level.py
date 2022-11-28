@@ -11,6 +11,7 @@ All rows in the level must have the same length.
 #  L = curved    #
 #  # = moat      #
 #  U = ocean     #
+# ' '= blank     #
 #                #
 ##################
 """
