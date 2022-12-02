@@ -189,7 +189,7 @@ def get_solution(detect_loop=False, remove=None, self_loops=[]):
                           ~link_down[r][c] & ~link_left[r][c] & ~link_right[r][c]  # Not linked
                         | ~link_down[r][c] &  link_left[r][c] &  link_right[r][c]  # Left & right
                     )
-                elif r == n_row - 1 or r == 0:  # Bottom wall
+                elif r == n_row - 1:  # Bottom wall
                     E.add_constraint(
                           ~link_up[r][c] & ~link_left[r][c] & ~link_right[r][c]  # Not linked
                         | ~link_up[r][c] &  link_left[r][c] &  link_right[r][c]  # Left & right
