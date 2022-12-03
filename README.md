@@ -49,3 +49,8 @@ python3 overflow.py
 * `overflow.py`: Contains the code to build and run the model.
 * `level.py`: Where level layouts are inserted into the solver.
 * `viz.py`: Used to visualize solutions.
+
+### 💬 Miscellaneous
+
+* `documents/final/report.pdf`: A report detailing our project.
+* `documents/final/proofs.jp`: Jape proofs presented in the report.
